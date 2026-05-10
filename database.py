@@ -1,8 +1,8 @@
 import datetime as dt
 import uuid
-from typing import Optional
+from typing import List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, create_engine, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, create_engine, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 from config import settings
@@ -70,6 +70,67 @@ class ProblemSession(Base):
     user: Mapped[Optional[User]] = relationship(User, lazy="joined")
 
 
+class Lecture(Base):
+    __tablename__ = "lectures"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    course_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    audio_path: Mapped[str] = mapped_column(String(1024), default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="uploaded", nullable=False)
+    transcript: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    summary_original: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    summary_russian: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    key_terms: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    user: Mapped[User] = relationship(User, lazy="joined")
+    quizzes: Mapped[List["LectureQuiz"]] = relationship(
+        "LectureQuiz", back_populates="lecture", cascade="all, delete-orphan"
+    )
+
+
+class LectureQuiz(Base):
+    __tablename__ = "lecture_quizzes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    lecture_id: Mapped[str] = mapped_column(ForeignKey("lectures.id"), nullable=False, index=True)
+    type: Mapped[str] = mapped_column(String(32), nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    options: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    explanation: Mapped[str] = mapped_column(Text, nullable=False)
+    difficulty: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    lecture: Mapped[Lecture] = relationship("Lecture", back_populates="quizzes")
+
+
+class QuizAttempt(Base):
+    __tablename__ = "quiz_attempts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    lecture_id: Mapped[str] = mapped_column(ForeignKey("lectures.id"), nullable=False, index=True)
+    answers: Mapped[dict] = mapped_column(JSON, nullable=False)
+    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    user: Mapped[User] = relationship(User, lazy="joined")
+    lecture: Mapped[Lecture] = relationship(Lecture, lazy="joined")
+
+
 engine = create_engine(settings.database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -84,4 +145,3 @@ def get_db():
         yield db
     finally:
         db.close()
-

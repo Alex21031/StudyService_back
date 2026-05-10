@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -92,3 +92,67 @@ class ProblemSessionStateResponse(BaseModel):
     hint: Optional[str] = None
     step_title: Optional[str] = None
     attempts: int = 0
+
+
+LectureStatus = Literal["uploaded", "transcribing", "summarizing", "generating_quiz", "ready", "failed"]
+QuizType = Literal["multiple_choice", "short_answer", "blank"]
+QuizDifficulty = Literal["easy", "medium", "hard"]
+
+
+class KeyTermOut(BaseModel):
+    term: str
+    originalExplanation: str
+    russianExplanation: str
+
+
+class LectureQuizOut(BaseModel):
+    id: str
+    lectureId: str
+    type: QuizType
+    question: str
+    options: List[str] = Field(default_factory=list)
+    answer: str
+    explanation: str
+    difficulty: QuizDifficulty
+    createdAt: dt.datetime
+
+
+class LectureOut(BaseModel):
+    id: str
+    userId: int
+    title: str
+    courseName: str
+    audioPath: str
+    status: LectureStatus
+    transcript: Optional[str] = None
+    summaryOriginal: Optional[str] = None
+    summaryRussian: Optional[str] = None
+    keyTerms: List[KeyTermOut] = Field(default_factory=list)
+    errorMessage: Optional[str] = None
+    createdAt: dt.datetime
+    updatedAt: dt.datetime
+
+
+class LectureDetailOut(BaseModel):
+    lecture: LectureOut
+    quizzes: List[LectureQuizOut] = Field(default_factory=list)
+
+
+class ProcessLectureResponse(BaseModel):
+    lecture: LectureOut
+    quizzes: List[LectureQuizOut] = Field(default_factory=list)
+
+
+class TranscriptResponse(BaseModel):
+    transcript: str
+
+
+class QuizAttemptRequest(BaseModel):
+    answers: Dict[str, str]
+
+
+class QuizAttemptResponse(BaseModel):
+    attemptId: str
+    correct: int
+    total: int
+    score: int

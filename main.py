@@ -8,6 +8,7 @@ from auth import get_current_user
 from config import settings
 from database import User, get_db, init_db
 from email_translate import router as email_router
+from lectures import router as lecture_router
 from schemas import Token, UserCreate, UserOut
 from security import create_access_token, hash_password, verify_password
 from solve_problem import router as solve_router
@@ -64,4 +65,4 @@ def me(current_user: User = Depends(get_current_user)):
 app.include_router(plan_router, tags=["study-plan"])
 app.include_router(email_router, tags=["email-translate"])
 app.include_router(solve_router, tags=["solve-problem"])
-
+app.include_router(lecture_router)

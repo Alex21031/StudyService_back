@@ -21,6 +21,15 @@ from schemas import (
 router = APIRouter()
 
 
+def _ensure_session_access(session: ProblemSession, current_user: Optional[User]) -> None:
+    if session.user_id is None:
+        return
+    if current_user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    if current_user.id != session.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+
 def _steps_from_state(state: dict) -> List[Dict]:
     steps = state.get("steps") if isinstance(state, dict) else None
     return steps if isinstance(steps, list) else []
@@ -179,10 +188,15 @@ def create_session(
 
 
 @router.get("/solve-problem/sessions/{session_id}", response_model=ProblemSessionStateResponse)
-def get_session(session_id: str, db: Session = Depends(get_db)):
+def get_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
     s = db.get(ProblemSession, session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Not found")
+    _ensure_session_access(s, current_user)
     steps = _steps_from_state(s.state)
     idx = int((s.state or {}).get("step_index") or 0)
     is_finished = idx >= len(steps)
@@ -205,10 +219,16 @@ def get_session(session_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/solve-problem/sessions/{session_id}/answer", response_model=ProblemSessionStateResponse)
-def answer(session_id: str, payload: ProblemAnswerRequest, db: Session = Depends(get_db)):
+def answer(
+    session_id: str,
+    payload: ProblemAnswerRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
     s = db.get(ProblemSession, session_id)
     if not s:
         raise HTTPException(status_code=404, detail="Not found")
+    _ensure_session_access(s, current_user)
     lang = normalize_lang(s.language)
     state = s.state or {}
     steps = _steps_from_state(state)

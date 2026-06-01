@@ -2,7 +2,7 @@ import datetime as dt
 import uuid
 from typing import List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, create_engine, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, create_engine, func, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 from config import settings
@@ -82,8 +82,13 @@ class Lecture(Base):
     transcript: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     summary_original: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     summary_russian: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    summary_translations: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     key_terms: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    progress_percent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    progress_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    progress_current: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    progress_total: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -108,6 +113,11 @@ class LectureQuiz(Base):
     answer: Mapped[str] = mapped_column(Text, nullable=False)
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
     difficulty: Mapped[str] = mapped_column(String(32), nullable=False)
+    skill_tag: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    concept_refs: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    review_hint: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    follow_up_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    localized_content: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -123,6 +133,8 @@ class QuizAttempt(Base):
     lecture_id: Mapped[str] = mapped_column(ForeignKey("lectures.id"), nullable=False, index=True)
     answers: Mapped[dict] = mapped_column(JSON, nullable=False)
     score: Mapped[int] = mapped_column(Integer, nullable=False)
+    mode: Mapped[str] = mapped_column(String(16), default="practice", nullable=False)
+    feedback: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -135,8 +147,88 @@ engine = create_engine(settings.database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+def _ensure_lecture_columns() -> None:
+    inspector = inspect(engine)
+    if not inspector.has_table("lectures"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("lectures")}
+    statements: list[str] = []
+
+    if "progress_percent" not in existing_columns:
+        statements.append(
+            "ALTER TABLE lectures ADD COLUMN progress_percent INTEGER DEFAULT 0 NOT NULL"
+        )
+    if "progress_message" not in existing_columns:
+        statements.append("ALTER TABLE lectures ADD COLUMN progress_message TEXT")
+    if "progress_current" not in existing_columns:
+        statements.append("ALTER TABLE lectures ADD COLUMN progress_current INTEGER")
+    if "progress_total" not in existing_columns:
+        statements.append("ALTER TABLE lectures ADD COLUMN progress_total INTEGER")
+    if "summary_translations" not in existing_columns:
+        statements.append("ALTER TABLE lectures ADD COLUMN summary_translations JSON DEFAULT '{}' NOT NULL")
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+
+def _ensure_lecture_quiz_columns() -> None:
+    inspector = inspect(engine)
+    if not inspector.has_table("lecture_quizzes"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("lecture_quizzes")}
+    statements: list[str] = []
+
+    if "skill_tag" not in existing_columns:
+        statements.append("ALTER TABLE lecture_quizzes ADD COLUMN skill_tag VARCHAR(120)")
+    if "concept_refs" not in existing_columns:
+        statements.append("ALTER TABLE lecture_quizzes ADD COLUMN concept_refs JSON DEFAULT '[]' NOT NULL")
+    if "review_hint" not in existing_columns:
+        statements.append("ALTER TABLE lecture_quizzes ADD COLUMN review_hint TEXT")
+    if "follow_up_prompt" not in existing_columns:
+        statements.append("ALTER TABLE lecture_quizzes ADD COLUMN follow_up_prompt TEXT")
+    if "localized_content" not in existing_columns:
+        statements.append("ALTER TABLE lecture_quizzes ADD COLUMN localized_content JSON DEFAULT '{}' NOT NULL")
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+
+def _ensure_quiz_attempt_columns() -> None:
+    inspector = inspect(engine)
+    if not inspector.has_table("quiz_attempts"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("quiz_attempts")}
+    statements: list[str] = []
+
+    if "mode" not in existing_columns:
+        statements.append("ALTER TABLE quiz_attempts ADD COLUMN mode VARCHAR(16) DEFAULT 'practice' NOT NULL")
+    if "feedback" not in existing_columns:
+        statements.append("ALTER TABLE quiz_attempts ADD COLUMN feedback JSON DEFAULT '{}' NOT NULL")
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    _ensure_lecture_columns()
+    _ensure_lecture_quiz_columns()
+    _ensure_quiz_attempt_columns()
 
 
 def get_db():

@@ -23,10 +23,13 @@ def get_current_user_optional(
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[ALGORITHM])
         email: Optional[str] = payload.get("sub")
         if not email:
-            return None
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     except JWTError:
-        return None
-    return db.scalar(select(User).where(User.email == email))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    user = db.scalar(select(User).where(User.email == email))
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return user
 
 
 def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)) -> User:

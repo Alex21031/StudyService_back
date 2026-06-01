@@ -1,0 +1,251 @@
+- [x] Inspect the current Flutter frontend and document existing backend API assumptions.
+- [x] Fetch the backend repository and inspect its runtime, routes, and data contracts.
+- [x] Decide the integration shape for this workspace and record any constraints.
+- [x] Implement the minimum code and workspace changes needed to connect frontend and backend.
+- [x] Verify touched files with `git diff -- <file>` where available and run a relevant build or test command.
+- [x] Review the current Flutter frontend and identify the app-first copy/layout that should change for a web launch.
+- [x] Update the main Flutter UI to present StudyService as a web product while preserving the existing feature flows.
+- [x] Refresh web metadata and project documentation so the release target is clearly the web experience.
+- [x] Verify touched files with `git diff -- <file>` where available, run a relevant Flutter validation command, and record the outcome.
+- [x] Check the backend runtime state and confirm whether the FastAPI server is already reachable.
+- [x] Start the backend server from `backend/` with the local virtual environment if it is not already running.
+- [x] Verify the server with `/health` and one additional lightweight endpoint, then record the result.
+- [x] Check available Flutter web devices for an interactive manual test session.
+- [x] Start the Flutter frontend in a browser so the user can manipulate the product directly.
+- [x] Verify the local frontend URL and confirm the backend connection path for manual testing.
+- [x] Review the current screens and identify the UI patterns that still feel like internal tools rather than a production web product.
+- [x] Improve the shared shell and onboarding flow so navigation, status visibility, and first-use guidance are user-ready.
+- [x] Refine the main feature screens with clearer empty states, stronger hierarchy, and more usable responsive layouts.
+- [x] Verify the updated UI with `git diff -- <file>` where available, `flutter analyze`, and `flutter build web`, then document the result.
+- [x] Reproduce the lecture upload failure and confirm whether the Whisper runtime or environment configuration is broken.
+- [x] Fix the backend Whisper execution path so transcription uses a valid Python interpreter in this environment.
+- [x] Align backend dependencies and env defaults required for Whisper transcription to run locally.
+- [x] Verify the backend fix with `git diff -- <file>` where available and a targeted backend runtime check, then record the result.
+- [x] Inspect the lecture processing pipeline and confirm which steps are making the upload request feel slow to end users.
+- [x] Implement the highest-leverage improvement to reduce user-perceived wait time for lecture uploads and transcription.
+- [x] Verify the performance-oriented change with `git diff -- <file>` where available and a relevant backend/frontend validation flow.
+- [x] Inspect the latest lecture-processing state and logs to find why uploaded lectures are not surfacing transcripts or summaries.
+- [x] Fix the backend or frontend result-visibility flow so completed lecture materials show up reliably after upload.
+- [x] Verify the visibility fix with `git diff -- <file>` where available and a targeted runtime/build check.
+- [x] Inspect the current web runtime state to determine why the user sees a blank screen despite the local frontend server responding.
+- [x] Restore a working browser session or frontend runtime path so the StudyService UI renders again for manual testing.
+- [x] Verify the recovered frontend with `git diff -- <file>` where available and a live local render check.
+- [x] Trace the upload-to-library flow to find why saved lectures are not becoming visible and actionable after processing.
+- [x] Implement a frontend state handoff so the library auto-refreshes, selects the latest lecture, and keeps processing status visible.
+- [x] Verify the library recovery with `git diff -- <file>` where available and a targeted Flutter/manual flow check.
+- [x] Design a clearer lecture-processing progress model so users can tell how far uploads have advanced beyond a generic status string.
+- [x] Implement backend progress tracking and frontend progress visuals for transcription, summarization, and quiz generation.
+- [x] Verify the new progress feedback with `git diff -- <file>` where available and a targeted runtime upload check.
+- [x] Replace local Whisper transcription with hosted OpenAI transcription tuned for higher accuracy.
+- [x] Preserve single-lecture uploads by compressing oversized recordings instead of splitting them into segments.
+- [x] Verify the hosted transcription migration with diffs plus relevant backend/frontend validation.
+- [x] Restart the backend with the new OpenAI API configuration and confirm the service loads the updated environment.
+- [x] Run a real hosted transcription smoke test and then a full lecture upload flow to verify transcripts and summaries are produced.
+- [x] Record the runtime verification results for the OpenAI-backed transcription path.
+- [x] Fix the new OpenAI unsupported-audio failures by hardening the server-side audio normalization path before transcription.
+- [x] Verify that normalized hosted transcription still succeeds on sample uploads and produces the same downstream lecture outputs.
+- [x] Reproduce the newest hosted-transcription failure against a real saved lecture recording and compare provider behavior across supported models.
+- [x] Add a backend fallback path so recordings that `gpt-4o*` rejects as unsupported are retried automatically with a more tolerant hosted model.
+- [x] Verify the fallback path with diffs plus a targeted transcription run against the previously failing lecture file.
+- [x] Inspect the current lecture summary payload and UI so the new note-style structure fits the existing flow cleanly.
+- [x] Update study-material generation and rendering to show main keywords, detailed explanations, and extra notes more like a lecture handout.
+- [x] Verify the new summary presentation with diffs plus relevant backend/frontend validation.
+- [x] Inspect the current summary storage and UI assumptions so four-language summaries can be added without breaking existing lectures.
+- [x] Update backend generation, persistence, and API payloads to provide lecture summaries in English, Korean, Russian, and Chinese.
+- [x] Update the Flutter lecture UI to display all four summary languages clearly and verify the new end-to-end flow.
+- [x] Inspect why Korean and Chinese summaries are still missing for some lecture records after the four-language rollout.
+- [x] Patch compatibility behavior so newly generated lectures and older saved lectures can both surface all four summary languages.
+- [x] Verify the backfill path against an older lecture record plus current validation commands.
+- [x] Inspect the current key-term localization payload and UI path to confirm why keyword cards still emphasize Korean and only show Russian as an alternate language.
+- [x] Update backend generation and compatibility backfill so each keyword exposes English, Korean, Russian, and Chinese explanations.
+- [x] Update the Flutter keyword cards to display all four languages and verify the new localized keyword flow.
+- [x] Inspect the current quiz generation, storage, scoring, and Flutter quiz workspace to identify the highest-leverage learning improvements.
+- [x] Expand quiz metadata and scoring so each answer can return concept-aware feedback, weak-topic signals, and targeted retry cues.
+- [x] Upgrade the Flutter quiz practice flow with clearer modes, richer result review, and weak-concept follow-up actions.
+- [x] Verify the improved quiz flow with diffs plus relevant backend/frontend validation.
+- [x] Inspect the current quiz payload and practice UI to identify where a learner-selected quiz language should flow through generation, retrieval, and grading.
+- [x] Extend lecture quiz storage and API responses so questions, options, explanations, and review hints can be localized for English, Korean, Russian, and Chinese.
+- [x] Add a quiz language selector in the Flutter practice workspace and make submissions/results honor the selected language.
+- [x] Verify the multilingual quiz flow with diffs plus relevant backend/frontend validation.
+- [x] Inspect why some localized quiz sessions still fall back to Korean/default content even when a different quiz language is selected.
+- [x] Fix the quiz-localization retrieval/backfill path so visible question text and concept labels actually follow the selected language for existing lectures.
+- [x] Verify the repaired multilingual quiz display path against a saved lecture plus current validation commands.
+- [x] Inspect the current study-plan request/response shape and planner UI to identify why the feature still feels too thin for real study scheduling.
+- [x] Expand study-plan generation so it produces a more actionable schedule with daily focus, workload, review goals, and summary metadata.
+- [x] Rework the planner screen to present the stronger plan clearly, including timeline summary and more useful per-day cards.
+- [x] Verify the planner upgrade with `git diff -- <file>` where available plus relevant backend and Flutter validation commands.
+- [x] Inspect how recent quiz attempts and weak-concept feedback can personalize the planner without making plan generation brittle.
+- [x] Extend the study-plan payload with mission-style fields and lightweight adaptive signals such as phases, expected outputs, and weak-topic boosts.
+- [x] Rework the planner UI so the new plan feels more novel through mission cards, phase framing, and visible personalization cues.
+- [x] Verify the adaptive planner upgrade with diffs plus backend and Flutter validation.
+- [x] Extend the study-plan request so a user can choose one or more saved lectures and build a plan from their generated study materials.
+- [x] Feed selected lecture summaries, key terms, and lecture-specific weak concepts into plan generation and fallback behavior.
+- [x] Update the planner UI for multi-select lecture input and show which lectures shaped the generated plan.
+- [x] Verify the lecture-based planner flow with diffs plus backend and Flutter validation.
+- [x] Diagnose why some lecture-processing jobs fail at 80% with `Request timed out.` even though transcript/summary data exists.
+- [x] Make lecture text-generation timeouts less brittle for long recordings by widening configurable model timeouts.
+- [x] Keep lecture processing usable when enrichment steps time out by falling back to partial study materials instead of marking the whole lecture failed.
+- [x] Verify the timeout hardening with diffs plus relevant backend and Flutter validation commands.
+- [x] Simplify the quiz workflow to one guided-review mode and remove the visible practice/test split.
+- [x] Extend quiz loading and submission so one quiz set can mix questions from multiple selected ready lectures.
+- [x] Make quiz generation target 10 questions and add a backend path to regenerate fresh quiz sets for selected lectures.
+- [x] Update the Flutter quiz screen with multi-select lecture input, source-lecture visibility, and a `Create new quiz set` action.
+- [x] Verify the quiz overhaul with backend diffs plus relevant runtime, analyze, and build checks.
+
+## Notes
+- The current workspace does not contain a root `.git` directory, so `git diff -- <file>` cannot run successfully here until the repository metadata is restored.
+- Flutter is available in this environment now, so frontend verification can be done locally.
+- Current follow-up: add client-side auth form validation and make backend validation errors readable in the Flutter UI.
+
+## Review
+- Added the backend repository under `backend/` and documented the full-stack workspace flow in `README.md`.
+- Fixed the quiz-localization completion check so older lectures with non-empty but wrong-language `localizedContent` are reprocessed instead of being treated as complete.
+- Added an OpenAI text-generation fallback behind the existing Gemini helpers so localization backfills still finish when Gemini returns `429 Too Many Requests`.
+- Reprocessed a real saved lecture (`97ca0ba4-b0d7-4e26-a2f5-05db8af5a4db`) and confirmed its quiz prompts now store English, Russian, and Chinese translations instead of Korean fallback text.
+- Upgraded the study-plan API and planner UI so plans now include cadence controls, overview text, checkpoints, and per-day focus/review blocks instead of only a flat date-plus-task list.
+- Added a second planner pass that turns each day into a mission with phases, expected outputs, and “focus boost” callouts driven by recent quiz weak concepts when the user has attempt history.
+- Gave the backend local development defaults so it can boot against SQLite without a custom `.env`.
+- Tightened optional-auth handling so invalid bearer tokens now return `401` instead of being silently treated as anonymous.
+- Protected solve-problem session reads and answers so authenticated sessions are only accessible by their owner.
+- Verified backend diffs with `git diff -- <file>` inside `backend/`.
+- Verified runtime behavior with a FastAPI `TestClient` smoke test covering `health -> register -> login -> me`.
+- Verified the new auth behavior with a targeted smoke test: invalid optional auth now returns `401`, and owner-only solve sessions return `401/403/200` for unauthenticated/wrong-user/owner access.
+- Reframed the Flutter frontend as a browser-first StudyService experience with a responsive rail layout, a web-oriented landing panel, and launch/status cards while keeping the existing feature flows intact.
+- Updated localized navigation labels so the web shell title and menu reflect `StudyService Web` instead of the earlier generic app branding.
+- Updated `README.md`, `web/index.html`, `web/manifest.json`, and `pubspec.yaml` so the repository and generated site describe a web release rather than a generic Flutter starter.
+- Ran `flutter analyze` successfully with no issues.
+- Ran `flutter build web` successfully; the build completed and wrote output to `build/web/`.
+- Attempted `git diff -- <file>` verification, but it failed because the workspace root is not currently a git repository.
+- Started the FastAPI backend in the background from `backend/` with the local virtual environment.
+- Confirmed `http://127.0.0.1:8000/health` returns `{"status":"ok"}`.
+- Confirmed `http://127.0.0.1:8000/docs` responds with HTTP `200`.
+- Confirmed port `8000` is listening locally, with the backend process running as PID `17696`.
+- Confirmed Flutter sees `Chrome` as an available web device for manual testing.
+- Started the Flutter frontend on Chrome in debug mode, with the local web server responding on `http://127.0.0.1:3000`.
+- Confirmed the frontend root returns HTTP `200` and serves the `StudyService` page for interactive testing.
+- Reviewed the current UI against production web UX expectations and used that review to target onboarding, empty-state, navigation, and result-flow issues.
+- Reworked `lib/app.dart` so narrow screens use a drawer instead of a 7-item bottom bar, and the shared shell exposes account state more clearly.
+- Upgraded the main study flows with clearer banners, empty states, progress indicators, and next-step CTAs so the app behaves more like a connected product than an API demo.
+- Replaced several developer-facing authentication and flow messages with user-facing account/session copy.
+- Ran `flutter analyze` successfully after the usability pass.
+- Ran `flutter build web` successfully after the usability pass; the build completed and wrote output to `build/web/`.
+- Attempted `git diff -- lib/app.dart`, but it still fails because the workspace root is not currently a git repository.
+- Started a fresh web debug session on Edge for the new UI and confirmed the frontend responds on `http://127.0.0.1:3001`.
+- Reproduced the lecture-upload failure path and confirmed two root causes: `WHISPER_PYTHON_BIN=python3` was invalid for this Windows setup, and the backend virtual environment did not have `openai-whisper` installed.
+- Updated backend Whisper execution so it falls back to the current server Python when `WHISPER_PYTHON_BIN` is empty, and made PATH prefix handling use the OS-specific separator.
+- Updated local Whisper env defaults in `backend/.env` and `backend/.env.example` so they no longer force `python3`.
+- Added `openai-whisper` to `backend/requirements.txt` and installed it into `backend/.venv` together with its runtime dependencies.
+- Verified the backend diff with `git -C backend diff -- config.py lecture_service.py requirements.txt .env .env.example`.
+- Restarted the backend after the fix and confirmed `http://127.0.0.1:8000/health` still returns `{"status":"ok"}`.
+- Verified the resolved Whisper subprocess now launches with `D:\StudyService_front-main\backend\.venv\Scripts\python.exe` and can successfully `import whisper`.
+- Confirmed the lecture upload felt slow because `POST /lectures/process-audio` was doing upload, Whisper transcription, summarization, and quiz generation synchronously before returning an HTTP response.
+- Reworked `backend/lectures.py` so `process-audio` now returns `202 Accepted` quickly and hands the heavy lecture pipeline to a background task while persisting status updates in the database.
+- Updated the upload UI in `lib/app.dart` so it explains that processing continues in the background and provides a `Refresh status` action for the latest lecture.
+- Measured a real upload request against the running backend with a generated WAV file: the HTTP response now returned in about `0.052s` with lecture status `transcribing`, while processing continued asynchronously.
+- Ran `flutter analyze` successfully after the upload-flow change.
+- Ran `cmd /c flutter build web` successfully after the upload-flow change; a direct PowerShell invocation failed only because of a local PowerShell module-loading issue, not because of app code.
+- Attempted `git diff -- lib/app.dart` again, but it still fails because the workspace root is not currently a git repository.
+- Confirmed the latest missing-result bug came from two backend Whisper issues: the local `.env` still forced the heavy `turbo` model, and the subprocess could deadlock while `stderr` filled up during transcription.
+- Switched the local Whisper env default to `tiny`, forced UTF-8 subprocess IO, and merged Whisper stderr into stdout so background lecture jobs no longer get stuck forever in `transcribing`.
+- Updated the upload screen to keep polling the latest lecture automatically, show ready-state summaries/transcript in place, and surface backend failure messages without requiring the user to guess what happened.
+- Verified the backend diff with `git -C backend diff -- lecture_service.py .env .env.example`.
+- Ran `flutter analyze` successfully after the upload-result visibility update.
+- Reproduced the full lecture flow with a generated spoken WAV file: upload returned `202`, status advanced `transcribing -> summarizing -> ready`, transcript length reached `63`, and summary length reached `177`.
+- Confirmed the white-screen report was specific to the debug web session: `http://127.0.0.1:3000-3002` responded, but a headless browser capture still showed a blank page.
+- Verified the app itself still renders by pumping `StudyServiceApp` in a temporary widget smoke test and by building the production web bundle successfully.
+- Served `build/web/` on `http://127.0.0.1:8080` and confirmed with a headless Chrome screenshot that the full StudyService UI renders correctly there for manual testing.
+- Traced the library complaint to a frontend state gap: uploads were saved and processed on the backend, but the lecture library only refreshed when the user manually pressed `Refresh library`, so the latest lecture often looked missing or unusable.
+- Added shared frontend lecture-tracking state so uploads mark the latest lecture ID and increment a library revision whenever new processing data arrives.
+- Updated the lecture library to auto-refresh when it opens or when upload state changes, auto-select the newest relevant lecture, and keep polling while that lecture is still processing so transcript and summary become usable without extra guesswork.
+- Ran `flutter analyze` successfully after the upload-to-library handoff change.
+- Ran `cmd /c flutter build web` successfully after the library recovery change.
+- Attempted `git diff -- lib/app.dart`, but it still fails because the workspace root is not currently a git repository.
+- Added lecture progress fields on the backend for percent, message, and optional chunk counters, together with a lightweight migration in `init_db()` so the existing SQLite table gains those columns automatically.
+- Updated lecture processing to publish real-time transcription progress by chunk, then step-based progress for summarization, quiz generation, and completion.
+- Updated the upload result and lecture library UI so users see a progress card with percent, current stage text, and chunk counts instead of only a generic `transcribing` badge.
+- Verified backend diffs with `git -C backend diff -- database.py schemas.py lectures.py`.
+- Ran `flutter analyze` successfully after the progress UI change.
+- Ran `cmd /c flutter build web` successfully after the progress UI change.
+- Verified the runtime upload flow against the local backend: a sample lecture advanced through `5% upload saved -> 10% preparing -> 75% transcribing chunk 1/1 -> 84% summarizing -> 100% ready`.
+- Replaced the local Whisper path with OpenAI hosted transcription settings and the official `openai` Python SDK in `backend/requirements.txt`.
+- Kept the no-splitting requirement by adding a single-file compression path: when a recording is above the hosted 25 MB upload limit, the backend now recompresses it to mono AAC before sending it to the transcription API instead of segmenting it.
+- Kept the workspace upload limit larger than the provider limit so typical 35 MB lecture files can still be accepted, stored, and then compressed server-side.
+- Updated the upload UI copy so users understand that StudyService keeps one lecture file intact and only compresses it if the hosted API requires it.
+- Verified backend syntax with `python -m py_compile config.py gemini_api.py lecture_service.py lectures.py main.py database.py schemas.py`.
+- Ran `flutter analyze` successfully after the hosted transcription migration.
+- Ran `cmd /c flutter build web` successfully after the hosted transcription migration.
+- Restarted the backend successfully and confirmed `http://127.0.0.1:8000/health` still returns `{"status":"ok"}`.
+- Verified the new error path by calling `/lectures/transcribe-audio` without an OpenAI key; it now returns HTTP `503` with a clear `OPENAI_API_KEY is missing` message.
+- Confirmed the backend now reads a real `OPENAI_API_KEY` from `.env` and boots cleanly after restart.
+- Ran a real hosted transcription smoke test against `/lectures/transcribe-audio`; it returned HTTP `200` with a valid transcript from the OpenAI transcription API.
+- Ran the full lecture upload flow end-to-end: upload returned `202`, lecture status advanced `transcribing -> summarizing -> ready`, transcript length reached `111`, summary length reached `138`, and quiz count reached `3`.
+- Confirmed new real-world failures were OpenAI `invalid_value` responses stating the uploaded audio looked corrupted or unsupported.
+- Changed the hosted transcription path so the backend now always normalizes the lecture recording to a safe single-file AAC/M4A upload before calling OpenAI, rather than only compressing files that exceed 25 MB.
+- Added a clearer fallback error message for files that still cannot be decoded even after normalization, directing the user toward re-exporting as M4A, MP3, or WAV.
+- Re-ran backend syntax validation and `flutter analyze` successfully after the normalization change.
+- Restarted the backend and verified `/lectures/transcribe-audio` still succeeds through the normalization path with a sample WAV upload, returning HTTP `200` and a transcript.
+- Compared the same previously failing long lecture recording across hosted transcription models: both `gpt-4o-mini-transcribe` and `gpt-4o-transcribe` rejected the normalized 23 MB file with `invalid_value`, while `whisper-1` successfully returned a transcript for that exact normalized upload.
+- Added configurable hosted-transcription fallback models so StudyService now retries `unsupported/corrupted` `gpt-4o*` failures automatically with `whisper-1` before surfacing an error.
+- Verified the backend syntax with `python -m py_compile` after the fallback change.
+- Restarted the backend and re-ran `POST /lectures/transcribe-audio` against the previously failing saved lecture file; it now returns HTTP `200` with a transcript length of `23230`.
+- Extended lecture note generation so each key term now includes an `additionalContext` field alongside the detailed explanation and Russian support note.
+- Updated the lecture-note prompt so `summaryOriginal` is produced as a structured overview with `Core takeaway`, `Main flow`, and `Additional notes` sections.
+- Normalized non-string summary payloads from the model into readable newline-separated note text before saving them.
+- Reworked the Flutter lecture detail and latest-result panels to present `Study notes`, `Main keywords`, `Detailed explanation`, and `Additional note` blocks instead of only raw summary paragraphs.
+- Verified the backend syntax again with `python -m py_compile` after the summary-structure change.
+- Ran `flutter analyze` successfully after the new study-note UI change.
+- Ran `cmd /c flutter build web` successfully after the new study-note UI change.
+- Verified a live `generate_study_materials(...)` sample returns a string `summaryOriginal` plus key-term objects containing `additionalContext`.
+- Added a `summary_translations` lecture column plus API field so each lecture can persist four summary variants without breaking older rows.
+- Updated lecture material generation to request and normalize summary translations for English (`en`), Korean (`ko`), Russian (`ru`), and Chinese (`zh`), while keeping the older `summaryOriginal` and `summaryRussian` fields as compatibility fallbacks.
+- Updated the Flutter lecture model and study-note UI so the summary section now renders four language blocks in the order English, Korean, Russian, Chinese.
+- Verified the SQLite migration adds `summary_translations` to the `lectures` table.
+- Ran a live `generate_study_materials(...)` sample that returned all four summary translation keys.
+- Confirmed the newest lecture rows already store all four summary languages, while older lecture rows created before the migration still only had English/Russian fallback fields.
+- Added a backend translation-completion helper so new lecture generation fills any missing summary languages before saving.
+- Added an on-demand compatibility backfill in `GET /lectures/{lecture_id}` so opening an older lecture detail can populate missing Korean/Chinese summaries from the stored transcript.
+- Verified a real older lecture record (`7c7988a5-92ea-49e8-8e50-7b22c5ccb276`) was upgraded from `['en', 'ru']` to `['en', 'ko', 'ru', 'zh']`.
+- Confirmed the keyword cards were still Korean-centric because key terms only stored the older `originalExplanation` plus `russianExplanation` shape, even when the lecture summary itself had four languages.
+- Extended key-term payloads to include multilingual `explanations` and `additionalNotes` maps for English, Korean, Russian, and Chinese while preserving the older compatibility fields.
+- Added a backend key-term localization helper plus on-demand backfill so older lecture records can gain missing English/Chinese keyword explanations when the lecture detail is opened.
+- Updated the Flutter keyword cards so each concept now renders `Detailed explanations` and `Additional notes` across English, Korean, Russian, and Chinese instead of privileging Korean with a single Russian support line.
+- Verified a live `generate_multilingual_key_terms(...)` sample returns full `en/ko/ru/zh` explanation and additional-note keys.
+- Verified a real recent lecture record (`97ca0ba4-b0d7-4e26-a2f5-05db8af5a4db`) now stores four-language keyword explanations after backfill.
+- Extended lecture quizzes with concept tags, review hints, and follow-up prompts so each question can drive better remediation.
+- Updated quiz scoring to return per-question feedback, weak-concept summaries, recommended next actions, and explicit `practice` versus `test` mode metadata.
+- Reworked the Flutter quiz workspace around guided review: mode selection, concept chips, attempt summaries, weak-concept cards, and retrying only missed questions.
+- Verified backend syntax with `python -m py_compile`, verified Flutter with `flutter analyze` and `flutter build web`, and ran a FastAPI `TestClient` smoke test that confirmed the richer quiz-attempt payload structure.
+- Extended lecture quizzes with `localizedContent` so each question can carry English, Korean, Russian, and Chinese versions of the prompt, options, answer, explanation, hints, and concept labels.
+- Updated quiz grading so localized answers are accepted and the attempt response comes back in the learner-selected language.
+- Added a quiz language selector to the Flutter practice workspace and wired the visible question text, options, concept chips, and feedback flow to that selection.
+- Verified the multilingual quiz path with `flutter analyze`, `flutter build web`, `python -m py_compile`, and a FastAPI `TestClient` smoke test that submitted a Russian answer and received a correct Russian-language quiz response.
+- Extended the study-plan request and response so the planner can receive `lectureIds` and report back which lecture titles shaped the finished plan.
+- Updated plan generation to derive course and scope from the selected lectures, feed lecture summaries and key terms into the model prompt, and filter weak-concept boosts to the same lecture set.
+- Reworked the planner UI with a ready-lecture multi-select picker, automatic course/scope syncing from the selection, and result chips that show which lectures were used.
+- Verified the lecture-based planner flow with backend `py_compile`, a direct authenticated `create_plan(...)` smoke test using two real saved lectures, `flutter analyze`, and `flutter build web`.
+- Diagnosed the `Request timed out.` lecture failures as post-transcription LLM enrichment timeouts: the affected lecture rows already had transcript and summary data saved, but key-term and quiz generation were still using a brittle 60-second text-generation timeout.
+- Added configurable `LLM_TIMEOUT_SECONDS` handling for Gemini and OpenAI text-generation calls so long lecture enrichment requests get more time before failing.
+- Hardened `generate_study_materials(...)` so summary generation remains mandatory, while key-term and quiz enrichment degrade gracefully to partial materials instead of marking the whole lecture failed when a downstream timeout occurs.
+- Verified the timeout hardening with backend `py_compile`, a targeted monkeypatch smoke test that forced enrichment timeouts while still returning usable study materials, and a live recovery run that repaired failed lecture `bb02d9d4-2351-4810-9594-6031672a0526` back to `ready` with 7 key terms.
+- Simplified the quiz experience to one guided-review flow on the frontend, removing the visible practice/test split while still preserving the existing graded feedback structure underneath.
+- Extended quiz submission so the backend can score only the selected quiz IDs, which makes mixed quiz sets from multiple lectures grade correctly instead of forcing full-lecture attempts.
+- Added a fresh quiz-generation endpoint for selected lectures and updated quiz generation to target 10 questions, with a live runtime check confirming two selected lectures were regenerated to 10 questions each.
+- Reworked the Flutter quiz screen around multi-select lecture sources, source-lecture chips on each question, a 10-question active set, and both `Generate fresh quizzes` and `Create new quiz set` actions.
+- Verified the quiz overhaul with backend `py_compile`, `flutter analyze`, `flutter build web`, and a live authenticated smoke test showing `lecture_a_count_after: 10` plus subset grading returning `total: 3`, `correct: 3`, and `question_results: 3`.
+- [x] Audit the current web shell and feature screens for internal-only copy, redundant status blocks, and layout noise that should be removed for production users.
+- [x] Refine the shared theme, shell, and reusable card components so the interface feels more intentionally designed without changing the approved color direction.
+- [x] Simplify the home, upload, library, quiz, and planner screens to emphasize real user actions and hide unnecessary workspace/debug detail.
+- [x] Verify the UI cleanup with `git diff -- <file>` where available plus `flutter analyze` and `flutter build web`.
+
+- Updated the web shell so the side navigation and top bar feel more like a product surface than an internal dashboard, including a calmer sidebar summary and clearer current-page context.
+- Reworked the home experience around user-facing connection/account setup, a cleaner hero message, and practical getting-started guidance instead of release-focused internal messaging.
+- Tightened the upload, library, quiz, and planner copy so the screens talk about the user task at hand rather than workspace/backend mechanics while keeping the existing functionality intact.
+- Verified the refreshed frontend with `flutter analyze` and `cmd /c flutter build web`.
+- Attempted `git diff -- lib/app.dart` and `git diff -- tasks/todo.md`, but both still fail because the workspace root does not currently contain `.git`.
+- [x] Tighten the home connection card by removing redundant explanation blocks and simplifying the layout around the API URL and actions.
+- [x] Verify the focused home-card cleanup with `git diff -- <file>` where available plus `flutter analyze` and `flutter build web`.
+
+- Simplified the home connection card so it now shows only the essential URL field, short helper copy, status chip, and two actions.
+- Removed the extra explainer block under connection settings and shortened the surrounding wording so the setup panel feels lighter.
+- Verified the focused home-card cleanup with `flutter analyze` and `cmd /c flutter build web`.
+- Attempted `git diff -- lib/app.dart` and `git diff -- tasks/todo.md`, but both still fail because the workspace root does not currently contain `.git`.

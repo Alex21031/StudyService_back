@@ -18,6 +18,11 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(160), default="", nullable=False)
+    school_name: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    major: Mapped[str] = mapped_column(String(160), default="", nullable=False)
+    academic_year: Mapped[str] = mapped_column(String(80), default="", nullable=False)
+    preferred_language: Mapped[str] = mapped_column(String(16), default="ko", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -147,6 +152,33 @@ engine = create_engine(settings.database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+def _ensure_user_columns() -> None:
+    inspector = inspect(engine)
+    if not inspector.has_table("users"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("users")}
+    statements: list[str] = []
+
+    if "full_name" not in existing_columns:
+        statements.append("ALTER TABLE users ADD COLUMN full_name VARCHAR(160) DEFAULT '' NOT NULL")
+    if "school_name" not in existing_columns:
+        statements.append("ALTER TABLE users ADD COLUMN school_name VARCHAR(200) DEFAULT '' NOT NULL")
+    if "major" not in existing_columns:
+        statements.append("ALTER TABLE users ADD COLUMN major VARCHAR(160) DEFAULT '' NOT NULL")
+    if "academic_year" not in existing_columns:
+        statements.append("ALTER TABLE users ADD COLUMN academic_year VARCHAR(80) DEFAULT '' NOT NULL")
+    if "preferred_language" not in existing_columns:
+        statements.append("ALTER TABLE users ADD COLUMN preferred_language VARCHAR(16) DEFAULT 'ko' NOT NULL")
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+
 def _ensure_lecture_columns() -> None:
     inspector = inspect(engine)
     if not inspector.has_table("lectures"):
@@ -226,6 +258,7 @@ def _ensure_quiz_attempt_columns() -> None:
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    _ensure_user_columns()
     _ensure_lecture_columns()
     _ensure_lecture_quiz_columns()
     _ensure_quiz_attempt_columns()

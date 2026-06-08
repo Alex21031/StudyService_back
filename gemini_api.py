@@ -96,6 +96,22 @@ def generate_json(system: str, user: str) -> dict:
             text = generate_text(system=system, user=user).strip()
         else:
             raise
+    decoder = json.JSONDecoder()
+    try:
+        candidate, _ = decoder.raw_decode(text)
+        if isinstance(candidate, dict):
+            return candidate
+    except json.JSONDecodeError:
+        pass
+
+    for match in re.finditer(r"\{", text):
+        try:
+            candidate, _ = decoder.raw_decode(text[match.start():])
+            if isinstance(candidate, dict):
+                return candidate
+        except json.JSONDecodeError:
+            continue
+
     m = re.search(r"\{[\s\S]*\}", text)
     if not m:
         raise ValueError("Model did not return JSON object")

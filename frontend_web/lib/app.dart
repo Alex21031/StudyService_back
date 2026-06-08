@@ -187,9 +187,25 @@ class AppController extends ChangeNotifier {
   Future<UserProfile> register({
     required String email,
     required String password,
+    required String fullName,
+    required String schoolName,
+    required String major,
+    required String academicYear,
+    required String preferredLanguage,
   }) async {
-    final user = await api.register(email: email, password: password);
+    final user = await api.register(
+      email: email,
+      password: password,
+      fullName: fullName,
+      schoolName: schoolName,
+      major: major,
+      academicYear: academicYear,
+      preferredLanguage: preferredLanguage,
+    );
     currentUser = user;
+    if (user.preferredLanguage.trim().isNotEmpty) {
+      localeCode = user.preferredLanguage.trim().toLowerCase();
+    }
     notifyListeners();
     return user;
   }
@@ -201,6 +217,9 @@ class AppController extends ChangeNotifier {
     token = await api.login(email: email, password: password);
     final user = await api.me();
     currentUser = user;
+    if (user.preferredLanguage.trim().isNotEmpty) {
+      localeCode = user.preferredLanguage.trim().toLowerCase();
+    }
     notifyListeners();
     return user;
   }
@@ -208,6 +227,9 @@ class AppController extends ChangeNotifier {
   Future<UserProfile> refreshMe() async {
     final user = await api.me();
     currentUser = user;
+    if (user.preferredLanguage.trim().isNotEmpty) {
+      localeCode = user.preferredLanguage.trim().toLowerCase();
+    }
     notifyListeners();
     return user;
   }
@@ -253,6 +275,8 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
+  bool _showAuthPage = false;
+  HomeAuthMode _authPageMode = HomeAuthMode.signIn;
 
   @override
   Widget build(BuildContext context) {
@@ -265,6 +289,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         page: HomeScreen(
           controller: widget.controller,
           onSelectFeature: (index) => setState(() => _selectedIndex = index),
+          onOpenAuthPage: (mode) => setState(() {
+            _authPageMode = mode;
+            _showAuthPage = true;
+          }),
         ),
       ),
       (
@@ -296,20 +324,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         label: l10n.planner,
         page: PlannerScreen(controller: widget.controller),
       ),
-      (
-        icon: Icons.translate_outlined,
-        label: l10n.mail,
-        page: MailTranslateScreen(controller: widget.controller),
-      ),
-      (
-        icon: Icons.psychology_outlined,
-        label: l10n.solver,
-        page: SolverScreen(controller: widget.controller),
-      ),
     ];
     final isWideLayout = MediaQuery.sizeOf(context).width >= 1080;
-    final content = destinations[_selectedIndex].page;
-    final currentLabel = destinations[_selectedIndex].label;
+    final content = _showAuthPage
+        ? AuthWorkspaceScreen(
+            controller: widget.controller,
+            initialMode: _authPageMode,
+            onBack: () => setState(() => _showAuthPage = false),
+            onAuthenticated: () => setState(() => _showAuthPage = false),
+          )
+        : destinations[_selectedIndex].page;
+    final isPublicPreloginShell =
+        !widget.controller.isLoggedIn && (_selectedIndex == 0 || _showAuthPage);
+
+    if (isPublicPreloginShell) {
+      return Scaffold(body: content);
+    }
 
     return Scaffold(
       drawer: isWideLayout
@@ -320,25 +350,31 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                      child: Row(
                         children: [
-                          const _LaunchBadge(label: 'Study smarter'),
-                          const SizedBox(height: 14),
-                          const Text(
-                            'StudyService',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.waves_rounded,
+                              color: Color(0xFF2563EB),
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.controller.isLoggedIn
-                                ? (userEmail ?? 'Signed in')
-                                : 'Browse as guest',
-                            style: const TextStyle(color: Color(0xFF475569)),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'WaveStudy',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -373,24 +409,34 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
             ),
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l10n.appTitle),
-            Text(
-              currentLabel,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF64748B),
-                fontWeight: FontWeight.w500,
+        automaticallyImplyLeading: !isWideLayout,
+        toolbarHeight: 68,
+        titleSpacing: 8,
+        surfaceTintColor: Colors.transparent,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilledButton.icon(
+              onPressed: _showAuthPage
+                  ? null
+                  : () => setState(() => _selectedIndex = 1),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Upload lecture'),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(right: isWideLayout ? 20 : 12),
+            child: Center(
+              child: _HeaderAccountPill(
+                email: widget.controller.currentUser?.email ?? 'Guest session',
               ),
             ),
-          ],
-        ),
-        titleSpacing: 20,
-        actions: [
-          if (isWideLayout)
+          ),
+          if (!isWideLayout)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: Center(
@@ -404,72 +450,96 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 ),
               ),
             ),
-          PopupMenuButton<String>(
-            onSelected: widget.controller.changeLanguage,
-            itemBuilder: (context) => const [
+          const SizedBox.shrink(),
+          /*
               PopupMenuItem(value: 'zh', child: Text('中文')),
               PopupMenuItem(value: 'ko', child: Text('한국어')),
               PopupMenuItem(value: 'ru', child: Text('Русский')),
             ],
             icon: const Icon(Icons.language),
           ),
+          */
         ],
       ),
       body: isWideLayout
           ? Row(
               children: [
                 Container(
-                  width: 276,
+                  width: 292,
                   margin: const EdgeInsets.fromLTRB(20, 12, 0, 20),
-                  padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.82),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x140F172A),
-                        blurRadius: 30,
-                        offset: Offset(0, 18),
+                        color: Color(0x080F172A),
+                        blurRadius: 18,
+                        offset: Offset(0, 10),
                       ),
                     ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const _LaunchBadge(label: 'Web release'),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'StudyService',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.waves_rounded,
+                                color: Color(0xFF2563EB),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'WaveStudy',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    userEmail ?? 'Signed in',
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Save lectures, review notes, build quizzes, and stay on top of your study plan in one calm workspace.',
-                        style: TextStyle(
-                          color: Color(0xFF475569),
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
                       Expanded(
-                        child: NavigationRail(
-                          selectedIndex: _selectedIndex,
-                          useIndicator: true,
-                          groupAlignment: -0.95,
-                          labelType: NavigationRailLabelType.all,
-                          onDestinationSelected: (index) =>
-                              setState(() => _selectedIndex = index),
-                          destinations: [
-                            for (final destination in destinations)
-                              NavigationRailDestination(
-                                icon: Icon(destination.icon),
-                                label: Text(destination.label),
-                              ),
-                          ],
+                        child: ListView.separated(
+                          itemCount: destinations.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final destination = destinations[index];
+                            return _SidebarNavButton(
+                              icon: destination.icon,
+                              label: destination.label,
+                              selected: index == _selectedIndex,
+                              onTap: () => setState(() => _selectedIndex = index),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -477,7 +547,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     ],
                   ),
                 ),
-                Expanded(child: content),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 12, 20, 20),
+                    child: content,
+                  ),
+                ),
               ],
             )
           : content,
@@ -491,41 +566,309 @@ class HomeScreen extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onSelectFeature,
+    required this.onOpenAuthPage,
+  });
+
+  final AppController controller;
+  final ValueChanged<int> onSelectFeature;
+  final ValueChanged<HomeAuthMode> onOpenAuthPage;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+enum HomeAuthMode { signIn, register }
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  Widget build(BuildContext context) {
+    if (widget.controller.isLoggedIn) {
+      return _LoggedInHomeDashboard(
+        controller: widget.controller,
+        onSelectFeature: widget.onSelectFeature,
+      );
+    }
+
+    return Stack(
+      children: [
+        const Positioned(
+          top: -120,
+          right: -60,
+          child: _AmbientGlow(
+            size: 260,
+            colors: [Color(0x332563EB), Color(0x00000000)],
+          ),
+        ),
+        DecoratedBox(
+          decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _LandingTopBar(
+                    isLoggedIn: widget.controller.isLoggedIn,
+                    onOpenLibrary: () => widget.onSelectFeature(2),
+                    onOpenSignIn: () => widget.onOpenAuthPage(HomeAuthMode.signIn),
+                    onOpenRegister: () => widget.onOpenAuthPage(HomeAuthMode.register),
+                  ),
+          _HeroPanel(
+            onSelectFeature: widget.onSelectFeature,
+          ),
+                  const _LandingProcessSection(),
+                  _LandingFeaturesSection(
+                    onOpenQuiz: () => widget.onSelectFeature(3),
+                    onOpenPlanner: () => widget.onSelectFeature(4),
+                    onOpenSummary: () => widget.onSelectFeature(2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+}
+
+class _LoggedInHomeDashboard extends StatelessWidget {
+  const _LoggedInHomeDashboard({
+    required this.controller,
+    required this.onSelectFeature,
   });
 
   final AppController controller;
   final ValueChanged<int> onSelectFeature;
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  Widget build(BuildContext context) {
+    final firstName = _dashboardGreetingName(controller.currentUser);
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 1040;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  firstName == null ? 'Welcome back!' : '안녕하세요, $firstName님!',
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Start a new upload or jump back into your latest study materials.',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 15,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                if (isWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: _DashboardUploadCard(
+                          onTap: () => onSelectFeature(1),
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          children: [
+                            _DashboardRecentCard(
+                              onTap: () => onSelectFeature(2),
+                            ),
+                            const SizedBox(height: 20),
+                            _DashboardQuizCard(
+                              onTap: () => onSelectFeature(3),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  _DashboardUploadCard(onTap: () => onSelectFeature(1)),
+                  const SizedBox(height: 20),
+                  _DashboardRecentCard(onTap: () => onSelectFeature(2)),
+                  const SizedBox(height: 20),
+                  _DashboardQuizCard(onTap: () => onSelectFeature(3)),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+String? _dashboardGreetingName(UserProfile? user) {
+  if (user == null) {
+    return null;
+  }
+  final fullName = user.fullName.trim();
+  if (fullName.isEmpty) {
+    return null;
+  }
+  return fullName.split(RegExp(r'\s+')).first;
+}
+
+class AuthWorkspaceScreen extends StatefulWidget {
+  const AuthWorkspaceScreen({
+    super.key,
+    required this.controller,
+    required this.initialMode,
+    required this.onBack,
+    required this.onAuthenticated,
+  });
+
+  final AppController controller;
+  final HomeAuthMode initialMode;
+  final VoidCallback onBack;
+  final VoidCallback onAuthenticated;
+
+  @override
+  State<AuthWorkspaceScreen> createState() => _AuthWorkspaceScreenState();
+}
+
+class _AuthWorkspaceScreenState extends State<AuthWorkspaceScreen> {
   static final RegExp _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-  late final TextEditingController _baseUrlController;
+
+  late HomeAuthMode _mode;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _schoolController = TextEditingController();
+  final TextEditingController _majorController = TextEditingController();
   bool _loading = false;
-  String? _healthStatus;
+  String _academicYear = '1st year';
+  String _preferredLanguage = 'ko';
 
   @override
   void initState() {
     super.initState();
-    _baseUrlController = TextEditingController(text: widget.controller.baseUrl);
+    _mode = widget.initialMode;
+    _preferredLanguage = widget.controller.localeCode;
+    if (!const {'en', 'ko', 'ru', 'zh'}.contains(_preferredLanguage)) {
+      _preferredLanguage = 'ko';
+    }
   }
 
   @override
   void dispose() {
-    _baseUrlController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _fullNameController.dispose();
+    _schoolController.dispose();
+    _majorController.dispose();
     super.dispose();
   }
 
-  Future<void> _run(Future<void> Function() action) async {
+  void _showMessage(String message) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  InputDecoration _authInputDecoration(String label) {
+    const borderColor = Color(0xFFD1D5DB);
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.6),
+      ),
+    );
+  }
+
+  bool _validateInputs() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || !_emailPattern.hasMatch(email)) {
+      _showMessage('Enter a valid email address.');
+      return false;
+    }
+    if (password.length < 6) {
+      _showMessage('Password must be at least 6 characters.');
+      return false;
+    }
+    if (_mode == HomeAuthMode.register) {
+      if (_confirmPasswordController.text != password) {
+        _showMessage('Password confirmation does not match.');
+        return false;
+      }
+      if (_fullNameController.text.trim().isEmpty) {
+        _showMessage('Enter your name.');
+        return false;
+      }
+      if (_schoolController.text.trim().isEmpty) {
+        _showMessage('Enter your school or university.');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<void> _submit() async {
+    if (!_validateInputs()) {
+      return;
+    }
     setState(() => _loading = true);
     try {
-      await action();
+      if (_mode == HomeAuthMode.signIn) {
+        final user = await widget.controller.login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+        if (!mounted) {
+          return;
+        }
+        _showMessage('Signed in as ${user.email}.');
+        widget.onAuthenticated();
+        return;
+      }
+
+      final user = await widget.controller.register(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        fullName: _fullNameController.text.trim(),
+        schoolName: _schoolController.text.trim(),
+        major: _majorController.text.trim(),
+        academicYear: _academicYear,
+        preferredLanguage: _preferredLanguage,
+      );
+      if (!mounted) {
+        return;
+      }
+      _showMessage('Account created for ${user.email}.');
+      widget.onAuthenticated();
     } on ApiException catch (error) {
       _showMessage(error.message);
     } catch (error) {
@@ -537,281 +880,229 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  bool _validateAuthInputs() {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-
-    if (email.isEmpty) {
-      _showMessage('Enter an email address first.');
-      return false;
-    }
-    if (!_emailPattern.hasMatch(email)) {
-      _showMessage('Enter a valid email address.');
-      return false;
-    }
-    if (password.isEmpty) {
-      _showMessage('Enter a password first.');
-      return false;
-    }
-    if (password.length < 6) {
-      _showMessage('Password must be at least 6 characters.');
-      return false;
-    }
-    return true;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final user = widget.controller.currentUser;
-    final isWideLayout = MediaQuery.sizeOf(context).width >= 1080;
-    final connectionCard = _SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Connection',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-              ),
-              if (_healthStatus != null)
-                Chip(
-                  avatar: const Icon(Icons.favorite_outline, size: 18),
-                  label: Text(_healthStatus!),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Use the default URL unless your API lives somewhere else.',
-            style: TextStyle(color: Color(0xFF475569), height: 1.45),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _baseUrlController,
-            decoration: const InputDecoration(
-              labelText: 'API base URL',
-              hintText: 'http://127.0.0.1:8000',
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _loading
-                      ? null
-                      : () {
-                          widget.controller.setBaseUrl(_baseUrlController.text);
-                          _showMessage('Connection updated.');
-                        },
-                  child: const Text('Save'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton(
-                  onPressed: _loading
-                      ? null
-                      : () => _run(() async {
-                          widget.controller.setBaseUrl(_baseUrlController.text);
-                          final response = await widget.controller
-                              .checkHealth();
-                          if (!mounted) {
-                            return;
-                          }
-                          setState(() {
-                            _healthStatus =
-                                response['status']?.toString() ?? 'unknown';
-                          });
-                          _showMessage('Connection looks good.');
-                        }),
-                  child: const Text('Check'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Change it only when the frontend and API are on different addresses.',
-            style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+    final cardTitle = _mode == HomeAuthMode.signIn ? '로그인' : '계정 만들기';
+
+    final authCard = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 18,
+            offset: Offset(0, 8),
           ),
         ],
       ),
-    );
-    final authCard = _SectionCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Account',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          Text(
+            cardTitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Your uploads, summaries, quizzes, and plans stay tied to the account you use here.',
-            style: TextStyle(color: Color(0xFF475569), height: 1.45),
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 24),
           TextField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(labelText: 'Email'),
+            decoration: _authInputDecoration('Email address'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           TextField(
             controller: _passwordController,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+            decoration: _authInputDecoration(
+              _mode == HomeAuthMode.signIn ? 'Password' : 'Create password',
+            ),
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              FilledButton(
-                onPressed: _loading
-                    ? null
-                    : () => _run(() async {
-                        if (!_validateAuthInputs()) {
-                          return;
-                        }
-                        widget.controller.setBaseUrl(_baseUrlController.text);
-                        final user = await widget.controller.register(
-                          email: _emailController.text.trim(),
-                          password: _passwordController.text,
-                        );
-                        _showMessage(
-                          'Account created for ${user.email}. You can sign in now.',
-                        );
-                      }),
-                child: const Text('Create account'),
+          if (_mode == HomeAuthMode.register) ...[
+            const SizedBox(height: 14),
+            TextField(
+              controller: _confirmPasswordController,
+              obscureText: true,
+              decoration: _authInputDecoration('Confirm password'),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _fullNameController,
+              decoration: _authInputDecoration('Full name'),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _schoolController,
+              decoration: _authInputDecoration('School or university'),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _majorController,
+              decoration: _authInputDecoration('Major or department'),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _academicYear,
+              decoration: _authInputDecoration('Academic year'),
+              items: const [
+                DropdownMenuItem(value: '1st year', child: Text('1st year')),
+                DropdownMenuItem(value: '2nd year', child: Text('2nd year')),
+                DropdownMenuItem(value: '3rd year', child: Text('3rd year')),
+                DropdownMenuItem(value: '4th year', child: Text('4th year')),
+                DropdownMenuItem(value: 'Graduate', child: Text('Graduate')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _academicYear = value);
+                }
+              },
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _preferredLanguage,
+              decoration: _authInputDecoration('Preferred language'),
+              items: const [
+                DropdownMenuItem(value: 'en', child: Text('English')),
+                DropdownMenuItem(value: 'ko', child: Text('Korean')),
+                DropdownMenuItem(value: 'ru', child: Text('Russian')),
+                DropdownMenuItem(value: 'zh', child: Text('Chinese')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _preferredLanguage = value);
+                }
+              },
+            ),
+          ],
+          const SizedBox(height: 22),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _loading ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(54),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
-              FilledButton.tonal(
-                onPressed: _loading
-                    ? null
-                    : () => _run(() async {
-                        if (!_validateAuthInputs()) {
-                          return;
-                        }
-                        widget.controller.setBaseUrl(_baseUrlController.text);
-                        final user = await widget.controller.login(
-                          email: _emailController.text.trim(),
-                          password: _passwordController.text,
-                        );
-                        _showMessage('Signed in as ${user.email}.');
-                      }),
-                child: const Text('Sign in'),
+              child: Text(
+                _loading
+                    ? (_mode == HomeAuthMode.signIn
+                          ? 'Signing in...'
+                          : 'Creating account...')
+                    : (_mode == HomeAuthMode.signIn ? 'Sign in' : 'Create account'),
               ),
-              OutlinedButton(
-                onPressed: _loading
-                      ? null
-                      : () => _run(() async {
-                          final user = await widget.controller.refreshMe();
-                          _showMessage('Account refreshed for ${user.email}.');
-                        }),
-                child: const Text('Refresh account'),
-              ),
-              OutlinedButton(
-                onPressed: _loading
-                    ? null
-                    : () {
-                        widget.controller.logout();
-                        _showMessage('Signed out.');
-                      },
-                child: const Text('Sign out'),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
-          _UserSummary(user: user, isLoggedIn: widget.controller.isLoggedIn),
+          const SizedBox(height: 14),
+          Center(
+            child: TextButton(
+              onPressed: _loading
+                  ? null
+                  : () {
+                      setState(() {
+                        _mode = _mode == HomeAuthMode.signIn
+                            ? HomeAuthMode.register
+                            : HomeAuthMode.signIn;
+                      });
+                    },
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              child: Text.rich(
+                TextSpan(
+                  style: const TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  children: _mode == HomeAuthMode.signIn
+                      ? const [
+                          TextSpan(text: 'Need a new account? '),
+                          TextSpan(
+                            text: 'Create one',
+                            style: TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ]
+                      : const [
+                          TextSpan(text: 'Already have an account? '),
+                          TextSpan(
+                            text: 'Sign in',
+                            style: TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
         ],
       ),
     );
 
-    return _PageScaffold(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _HeroPanel(
-            onSelectFeature: widget.onSelectFeature,
-            isLoggedIn: widget.controller.isLoggedIn,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minimumHeight = max(
+          constraints.maxHeight,
+          _mode == HomeAuthMode.signIn ? 700.0 : 920.0,
+        );
+
+        return DecoratedBox(
+          decoration: const BoxDecoration(color: Color(0xFFF9FAFB)),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              child: SizedBox(
+                height: minimumHeight,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextButton.icon(
+                      onPressed: widget.onBack,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF475569),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 8,
+                        ),
+                      ),
+                      icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                      label: const Text('Back to home'),
+                    ),
+                    const SizedBox(height: 24),
+                    Expanded(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: authCard,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 24),
-          if (_loading) ...[
-            const LinearProgressIndicator(),
-            const SizedBox(height: 16),
-          ],
-          if (isWideLayout)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 7,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _SectionHeader(
-                        title: 'Get ready to study',
-                        subtitle:
-                            'Connect once, sign in, and then move straight into lectures, review notes, and quizzes.',
-                      ),
-                      connectionCard,
-                      const SizedBox(height: 24),
-                      const _SectionHeader(
-                        title: 'Stay signed in',
-                        subtitle:
-                            'Use one account so your lectures and progress stay in the same place every time you come back.',
-                      ),
-                      authCard,
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  flex: 5,
-                  child: Column(
-                    children: [
-                      _AccountSnapshotCard(controller: widget.controller),
-                      const SizedBox(height: 16),
-                      const _QuickStartCard(),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          else ...[
-            const _SectionHeader(
-              title: 'Get ready to study',
-              subtitle:
-                  'Connect once, sign in, and then move straight into lectures, review notes, and quizzes.',
-            ),
-            connectionCard,
-            const SizedBox(height: 24),
-            const _SectionHeader(
-              title: 'Stay signed in',
-              subtitle:
-                  'Use one account so your lectures and progress stay in the same place every time you come back.',
-            ),
-            authCard,
-            const SizedBox(height: 24),
-            _AccountSnapshotCard(controller: widget.controller),
-            const SizedBox(height: 16),
-            const _QuickStartCard(),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
-
 }
 
 class RecordingScreen extends StatefulWidget {
@@ -989,13 +1280,15 @@ class _RecordingScreenState extends State<RecordingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _BannerCard(
-            icon: Icons.cloud_upload_outlined,
-            title: 'Upload a lecture recording',
-            body:
-                'Name the lecture clearly, choose the course, and upload the audio file. Once it starts processing, StudyService will keep the transcript, notes, and quizzes together for you.',
+          const Text(
+            'Lecture details',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           TextField(
             controller: _titleController,
             decoration: const InputDecoration(labelText: 'Lecture title'),
@@ -1006,6 +1299,15 @@ class _RecordingScreenState extends State<RecordingScreen> {
             decoration: const InputDecoration(labelText: 'Course name'),
           ),
           const SizedBox(height: 16),
+          if (_selectedFile != null) ...[
+            _InlineSummaryTile(
+              icon: Icons.audio_file_outlined,
+              title: _selectedFile!.name,
+              subtitle:
+                  'Selected and ready. Start processing when the lecture details look right.',
+            ),
+            const SizedBox(height: 14),
+          ],
           Row(
             children: [
               Expanded(
@@ -1019,28 +1321,6 @@ class _RecordingScreenState extends State<RecordingScreen> {
               FilledButton(
                 onPressed: _loading ? null : _submit,
                 child: Text(_loading ? 'Uploading...' : 'Start processing'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _StatsRow(
-            children: [
-              _MetricCard(
-                label: 'Account',
-                value: widget.controller.isLoggedIn
-                    ? 'Ready'
-                    : 'Login required',
-                tint: widget.controller.isLoggedIn
-                    ? const Color(0xFF0F766E)
-                    : const Color(0xFFB45309),
-              ),
-              _MetricCard(
-                label: 'Selected file',
-                value: _selectedFile?.name ?? 'None yet',
-              ),
-              _MetricCard(
-                label: 'After upload',
-                value: 'Transcript, notes, quizzes',
               ),
             ],
           ),
@@ -1060,6 +1340,15 @@ class _RecordingScreenState extends State<RecordingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text(
+                  'Latest upload',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 _LectureMeta(lecture: _result!.lecture),
                 const SizedBox(height: 16),
                 _StatsRow(
@@ -1129,11 +1418,11 @@ class _RecordingScreenState extends State<RecordingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(
-            title: 'Lecture upload',
-            subtitle:
-                'Turn a lecture recording into notes, summaries, and quiz-ready review material.',
+          _PageHeader(
+            title: '강의 업로드',
+            subtitle: '녹음 파일을 업로드하여 학습 자료를 생성하세요.',
           ),
+          const SizedBox(height: 18),
           if (_loading) ...[
             const LinearProgressIndicator(),
             const SizedBox(height: 16),
@@ -1148,26 +1437,14 @@ class _RecordingScreenState extends State<RecordingScreen> {
                   flex: 5,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _SectionHeader(
-                        title: 'Latest upload',
-                        subtitle:
-                            'Keep an eye on progress here, then jump straight into the generated material.',
-                      ),
-                      resultPanel,
-                    ],
+                    children: [resultPanel],
                   ),
                 ),
               ],
             )
           else ...[
             uploadForm,
-            const SizedBox(height: 24),
-            const _SectionHeader(
-              title: 'Latest upload',
-              subtitle:
-                  'Keep an eye on progress here, then jump straight into the generated material.',
-            ),
+            const SizedBox(height: 20),
             resultPanel,
           ],
         ],
@@ -1377,58 +1654,15 @@ class _AISummaryScreenState extends State<AISummaryScreen> {
           )
         : Column(
             children: [
-              for (final lecture in _lectures)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: InkWell(
-                    onTap: _loading ? null : () => _loadDetail(lecture.id),
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: _selectedDetail?.lecture.id == lecture.id
-                              ? const Color(0xFF0F766E)
-                              : const Color(0xFFE2E8F0),
-                          width: _selectedDetail?.lecture.id == lecture.id
-                              ? 1.5
-                              : 1,
-                        ),
-                      ),
-                      child: _SectionCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    lecture.title,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                _StatusPill(label: lecture.status),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text('Course: ${lecture.courseName}'),
-                            Text(
-                              'Updated: ${_prettyDateTime(lecture.updatedAt)}',
-                            ),
-                            if ((lecture.progressMessage ?? '').isNotEmpty ||
-                                lecture.progressPercent > 0) ...[
-                              const SizedBox(height: 12),
-                              _CompactLectureProgress(lecture: lecture),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+              for (var i = 0; i < _lectures.length; i++) ...[
+                _LectureListRow(
+                  lecture: _lectures[i],
+                  selected: _selectedDetail?.lecture.id == _lectures[i].id,
+                  onTap: _loading ? null : () => _loadDetail(_lectures[i].id),
                 ),
+                if (i != _lectures.length - 1)
+                  const Divider(height: 1, color: Color(0xFFE5E7EB)),
+              ],
             ],
           );
     final detailPanel = _selectedDetail == null
@@ -1442,6 +1676,15 @@ class _AISummaryScreenState extends State<AISummaryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text(
+                  'Lecture detail',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 _LectureMeta(lecture: _selectedDetail!.lecture),
                 const SizedBox(height: 16),
                 _StatsRow(
@@ -1495,34 +1738,23 @@ class _AISummaryScreenState extends State<AISummaryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(
-            title: 'Lecture library',
-            subtitle:
-                'Open finished lectures and move between transcript, notes, and quizzes without losing context.',
-          ),
-          _SectionCard(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.controller.isLoggedIn
-                        ? 'Signed in as ${widget.controller.currentUser?.email ?? 'your account'}'
-                        : 'Sign in to load your saved lectures.',
-                  ),
-                ),
-                const SizedBox(width: 12),
-                FilledButton(
-                  onPressed: _loading
-                      ? null
-                      : () => _refreshLectures(
-                          preferredLectureId: widget.controller.latestLectureId,
-                        ),
-                  child: const Text('Refresh library'),
-                ),
-              ],
+          _PageHeader(
+            title: 'AI 요약',
+            subtitle: '저장된 강의를 열어 요약, 핵심 개념, 전사 내용을 확인하세요.',
+            action: FilledButton(
+              onPressed: _loading
+                  ? null
+                  : () => _refreshLectures(
+                      preferredLectureId: widget.controller.latestLectureId,
+                    ),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Refresh'),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           if (_loading) ...[
             const LinearProgressIndicator(),
             const SizedBox(height: 16),
@@ -1533,43 +1765,50 @@ class _AISummaryScreenState extends State<AISummaryScreen> {
               children: [
                 Expanded(
                   flex: 4,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _SectionHeader(
-                        title: 'Saved lectures',
-                        subtitle:
-                            'Choose a lecture to open the material generated from it.',
-                      ),
-                      libraryList,
-                    ],
+                  child: _SectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Saved lectures',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        libraryList,
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   flex: 6,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _SectionHeader(
-                        title: 'Lecture detail',
-                        subtitle:
-                            'Summary, key concepts, transcript, and next actions stay together here.',
-                      ),
-                      detailPanel,
-                    ],
-                  ),
+                  child: detailPanel,
                 ),
               ],
             )
           else ...[
-            libraryList,
-            const SizedBox(height: 24),
-            const _SectionHeader(
-              title: 'Lecture detail',
-              subtitle:
-                  'Summary, key concepts, transcript, and next actions stay together here.',
+            _SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Saved lectures',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  libraryList,
+                ],
+              ),
             ),
+            const SizedBox(height: 20),
             detailPanel,
           ],
         ],
@@ -1593,6 +1832,8 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
+  static const List<int> _quizQuestionCountOptions = [5, 10, 15];
+
   bool _loading = false;
   List<Lecture> _lectures = const [];
   final Set<String> _selectedLectureIds = <String>{};
@@ -1602,6 +1843,7 @@ class _QuizScreenState extends State<QuizScreen> {
   final Map<String, TextEditingController> _textControllers = {};
   final Map<String, String> _answers = {};
   String _quizLanguage = 'en';
+  int _quizQuestionCount = 5;
   bool _showOnlyMissed = false;
   Set<String> _focusedQuizIds = <String>{};
   QuizAttemptResult? _result;
@@ -1680,7 +1922,7 @@ class _QuizScreenState extends State<QuizScreen> {
   List<LectureQuiz> _buildQuizSet(List<LectureQuiz> source) {
     final pool = List<LectureQuiz>.of(source);
     pool.shuffle(_random);
-    return pool.take(min(10, pool.length)).toList();
+    return pool.take(min(_quizQuestionCount, pool.length)).toList();
   }
 
   void _applyQuizPool(List<LectureQuiz> quizzes) {
@@ -1705,6 +1947,14 @@ class _QuizScreenState extends State<QuizScreen> {
       'zh' => 'Chinese',
       _ => code.toUpperCase(),
     };
+  }
+
+  void _updateQuizQuestionCount(int value) {
+    setState(() {
+      _quizQuestionCount = value;
+      _resetQuizAttemptState();
+      _quizzes = _quizPool.isEmpty ? const [] : _buildQuizSet(_quizPool);
+    });
   }
 
   QuizLocalization? _localizedQuizContent(
@@ -1808,7 +2058,7 @@ class _QuizScreenState extends State<QuizScreen> {
       final quizzes = regenerate
           ? await widget.controller.api.regenerateLectureQuizzes(
               lectureIds: lectureIds,
-              questionCount: 10,
+              questionCount: _quizQuestionCount,
             )
           : (await Future.wait(
               lectureIds.map(widget.controller.api.listLectureQuizzes),
@@ -1827,7 +2077,7 @@ class _QuizScreenState extends State<QuizScreen> {
       });
       _showMessage(
         regenerate
-            ? 'A fresh 10-question quiz set is ready.'
+            ? 'A fresh ${_quizzes.length}-question quiz set is ready.'
             : 'Quiz set loaded.',
       );
     } on ApiException catch (error) {
@@ -1850,7 +2100,7 @@ class _QuizScreenState extends State<QuizScreen> {
       _resetQuizAttemptState();
       _quizzes = _buildQuizSet(_quizPool);
     });
-    _showMessage('A new 10-question quiz set is ready.');
+    _showMessage('A new ${_quizzes.length}-question quiz set is ready.');
   }
 
   QuizAttemptResult _mergeQuizResults(
@@ -2030,117 +2280,296 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isWideLayout = MediaQuery.sizeOf(context).width >= 1100;
     return _PageScaffold(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(
-            title: 'Review quiz',
-            subtitle:
-                'Build a focused 10-question review set from one or more finished lectures.',
+          const _PageHeader(
+            title: '복습 퀴즈',
+            subtitle: '강의를 선택하고 바로 퀴즈 세트를 만들어 복습을 시작하세요.',
           ),
+          const SizedBox(height: 18),
           _SectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _BannerCard(
-                  icon: Icons.quiz_outlined,
-                  title: 'Build a quiz from your saved lectures',
-                  body:
-                      'Choose finished lectures, pull in their saved question pool, and create a fresh 10-question set whenever you want a new round.',
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    SizedBox(
-                      width: 220,
-                      child: FilledButton(
-                        onPressed: _loading ? null : _loadLectures,
-                        child: const Text('Refresh lectures'),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 180,
-                      child: OutlinedButton(
-                        onPressed: _loading ? null : () => _loadQuizzes(),
-                        child: const Text('Use saved questions'),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 220,
-                      child: OutlinedButton(
-                        onPressed: _loading
-                            ? null
-                            : () => _loadQuizzes(regenerate: true),
-                        child: const Text('Make fresh questions'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
                 const Text(
-                  'Choose lectures',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                  'Quiz setup',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
-                const SizedBox(height: 10),
-                if (_lectures.isEmpty)
-                  const Text(
-                    'Refresh your ready lectures first, then choose the ones you want in this quiz.',
-                    style: TextStyle(color: Color(0xFF475569), height: 1.45),
+                const SizedBox(height: 8),
+                const Text(
+                  '1. Choose lectures  2. Pick a language  3. Load saved questions or make a fresh set.',
+                  style: TextStyle(color: Color(0xFF64748B), height: 1.45),
+                ),
+                const SizedBox(height: 16),
+                if (isWideLayout)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: _QuizSetupBlock(
+                          title: 'Lecture sources',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (_lectures.isEmpty)
+                                const Text(
+                                  'Refresh your ready lectures first, then choose the ones you want in this quiz.',
+                                  style: TextStyle(
+                                    color: Color(0xFF475569),
+                                    height: 1.45,
+                                  ),
+                                )
+                              else
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: _lectures
+                                      .map(
+                                        (lecture) => FilterChip(
+                                          label: Text(
+                                            '${lecture.title} · ${lecture.courseName}',
+                                          ),
+                                          selected: _selectedLectureIds.contains(
+                                            lecture.id,
+                                          ),
+                                          onSelected: _loading
+                                              ? null
+                                              : (selected) => _toggleLectureSelection(
+                                                    lecture.id,
+                                                    selected,
+                                                  ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              if (_selectedLectureIds.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  '${_selectedLectureIds.length} lecture${_selectedLectureIds.length == 1 ? '' : 's'} selected.',
+                                  style: const TextStyle(
+                                    color: Color(0xFF475569),
+                                    height: 1.45,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 4,
+                        child: _QuizSetupBlock(
+                          title: 'Quiz setup',
+                          child: Column(
+                            children: [
+                              DropdownButtonFormField<String>(
+                                initialValue: _quizLanguage,
+                                decoration: const InputDecoration(
+                                  labelText: 'Quiz language',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'en',
+                                    child: Text('English'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'ko',
+                                    child: Text('Korean'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'ru',
+                                    child: Text('Russian'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'zh',
+                                    child: Text('Chinese'),
+                                  ),
+                                ],
+                                onChanged: _loading
+                                    ? null
+                                    : (value) {
+                                        if (value == null) {
+                                          return;
+                                        }
+                                        setState(() {
+                                          _quizLanguage =
+                                              _normalizeQuizLanguage(value);
+                                          _resetQuizWorkspace();
+                                        });
+                                      },
+                              ),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<int>(
+                                initialValue: _quizQuestionCount,
+                                decoration: const InputDecoration(
+                                  labelText: 'Question count',
+                                ),
+                                items: _quizQuestionCountOptions
+                                    .map(
+                                      (count) => DropdownMenuItem<int>(
+                                        value: count,
+                                        child: Text('$count questions'),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: _loading
+                                    ? null
+                                    : (value) {
+                                        if (value == null) {
+                                          return;
+                                        }
+                                        _updateQuizQuestionCount(value);
+                                      },
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: _loading ? null : _loadLectures,
+                                  child: const Text('Refresh lectures'),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: _loading ? null : () => _loadQuizzes(),
+                                  child: const Text('Use saved questions'),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: _loading
+                                      ? null
+                                      : () => _loadQuizzes(regenerate: true),
+                                  child: const Text('Make fresh questions'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   )
-                else
+                else ...[
                   Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _lectures
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      SizedBox(
+                        width: 220,
+                        child: FilledButton(
+                          onPressed: _loading ? null : _loadLectures,
+                          child: const Text('Refresh lectures'),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 180,
+                        child: OutlinedButton(
+                          onPressed: _loading ? null : () => _loadQuizzes(),
+                          child: const Text('Use saved questions'),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 220,
+                        child: OutlinedButton(
+                          onPressed: _loading
+                              ? null
+                              : () => _loadQuizzes(regenerate: true),
+                          child: const Text('Make fresh questions'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Choose lectures',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  if (_lectures.isEmpty)
+                    const Text(
+                      'Refresh your ready lectures first, then choose the ones you want in this quiz.',
+                      style: TextStyle(color: Color(0xFF475569), height: 1.45),
+                    )
+                  else
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: _lectures
+                          .map(
+                            (lecture) => FilterChip(
+                              label: Text(
+                                '${lecture.title} · ${lecture.courseName}',
+                              ),
+                              selected: _selectedLectureIds.contains(lecture.id),
+                              onSelected: _loading
+                                  ? null
+                                  : (selected) =>
+                                        _toggleLectureSelection(lecture.id, selected),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _quizLanguage,
+                    decoration: const InputDecoration(
+                      labelText: 'Quiz language',
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'en', child: Text('English')),
+                      DropdownMenuItem(value: 'ko', child: Text('Korean')),
+                      DropdownMenuItem(value: 'ru', child: Text('Russian')),
+                      DropdownMenuItem(value: 'zh', child: Text('Chinese')),
+                    ],
+                    onChanged: _loading
+                        ? null
+                        : (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() {
+                              _quizLanguage = _normalizeQuizLanguage(value);
+                              _resetQuizWorkspace();
+                            });
+                          },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    initialValue: _quizQuestionCount,
+                    decoration: const InputDecoration(
+                      labelText: 'Question count',
+                    ),
+                    items: _quizQuestionCountOptions
                         .map(
-                          (lecture) => FilterChip(
-                            label: Text('${lecture.title} · ${lecture.courseName}'),
-                            selected: _selectedLectureIds.contains(lecture.id),
-                            onSelected: _loading
-                                ? null
-                                : (selected) =>
-                                      _toggleLectureSelection(lecture.id, selected),
+                          (count) => DropdownMenuItem<int>(
+                            value: count,
+                            child: Text('$count questions'),
                           ),
                         )
                         .toList(),
-                  ),
-                if (_selectedLectureIds.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    '${_selectedLectureIds.length} lecture${_selectedLectureIds.length == 1 ? '' : 's'} selected. StudyService will mix their saved questions into one 10-question review set.',
-                    style: const TextStyle(
-                      color: Color(0xFF475569),
-                      height: 1.45,
-                    ),
+                    onChanged: _loading
+                        ? null
+                        : (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            _updateQuizQuestionCount(value);
+                          },
                   ),
                 ],
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: _quizLanguage,
-                  decoration: const InputDecoration(
-                    labelText: 'Quiz language',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'en', child: Text('English')),
-                    DropdownMenuItem(value: 'ko', child: Text('Korean')),
-                    DropdownMenuItem(value: 'ru', child: Text('Russian')),
-                    DropdownMenuItem(value: 'zh', child: Text('Chinese')),
-                  ],
-                  onChanged: _loading
-                      ? null
-                      : (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() {
-                            _quizLanguage = _normalizeQuizLanguage(value);
-                            _resetQuizWorkspace();
-                          });
-                        },
-                ),
                 const SizedBox(height: 10),
                 Text(
                   'Questions, answer choices, and feedback will follow the language selected here.',
@@ -2170,7 +2599,7 @@ class _QuizScreenState extends State<QuizScreen> {
               icon: Icons.rule_folder_outlined,
               title: 'Load or create a quiz set to begin',
               body:
-                  'Choose one or more ready lectures above, then use saved questions or make a fresh 10-question set.',
+                  'Choose one or more ready lectures above, then use saved questions or make a fresh quiz set.',
             )
           else ...[
             const SizedBox(height: 8),
@@ -2180,10 +2609,11 @@ class _QuizScreenState extends State<QuizScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Built from lectures',
+                      'Current quiz set',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -2210,6 +2640,10 @@ class _QuizScreenState extends State<QuizScreen> {
                           value: '${_quizzes.length}',
                         ),
                         _MetricCard(
+                          label: 'Target size',
+                          value: '$_quizQuestionCount',
+                        ),
+                        _MetricCard(
                           label: 'Quiz language',
                           value: _quizLanguageLabel(_quizLanguage),
                         ),
@@ -2221,7 +2655,7 @@ class _QuizScreenState extends State<QuizScreen> {
                           label: 'Current view',
                           value: _showOnlyMissed && _focusedQuizIds.isNotEmpty
                               ? 'Missed only'
-                              : '10-question set',
+                              : '${_quizzes.length}-question set',
                         ),
                       ],
                     ),
@@ -2392,8 +2826,12 @@ class _QuizScreenState extends State<QuizScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Attempt result',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    'Review result',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _StatsRow(
@@ -2720,20 +3158,27 @@ class _PlannerScreenState extends State<PlannerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(
-            title: 'Study planner',
-            subtitle:
-                'Turn your exam window and lecture library into a realistic plan you can actually follow.',
+          const _PageHeader(
+            title: '학습 계획',
+            subtitle: '시험 일정과 선택한 강의를 기준으로 현실적인 학습 계획을 만드세요.',
           ),
+          const SizedBox(height: 18),
           _SectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _BannerCard(
-                  icon: Icons.event_note_outlined,
-                  title: 'Build a plan around real lecture material',
-                  body:
-                      'Set the course, scope, workload, and target language. StudyService will shape that into a schedule with checkpoints, review goals, and daily missions.',
+                const Text(
+                  'Plan setup',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '1. Set the course scope  2. Choose lectures  3. Pick your weekly study rhythm.',
+                  style: TextStyle(color: Color(0xFF64748B), height: 1.45),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -2928,6 +3373,15 @@ class _PlannerScreenState extends State<PlannerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'Plan result',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     '${_result!.course} · Exam ${_result!.examDate}',
                     style: const TextStyle(fontWeight: FontWeight.w700),
@@ -3100,20 +3554,25 @@ class _MailTranslateScreenState extends State<MailTranslateScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(
-            title: 'Email translation',
-            subtitle:
-                'Translate email drafts into the languages your users or classmates actually need.',
+          _WorkspaceIntroCard(
+            icon: Icons.translate_outlined,
+            eyebrow: 'Mail translation',
+            title: 'Translate one message into the languages your audience actually needs.',
+            body:
+                'Paste the original email once, choose the target languages, and keep every translated version together for quick review.',
+            metrics: [
+              _MetricCard(label: 'Target languages', value: '${_languages.length}'),
+            ],
           ),
+          const SizedBox(height: 18),
           _SectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _BannerCard(
-                  icon: Icons.translate_outlined,
-                  title: 'Translate one message into multiple languages',
-                  body:
-                      'Paste the source email once, pick the target languages, and keep every translated version together below.',
+                const _PanelHeader(
+                  title: 'Translation setup',
+                  subtitle:
+                      'Choose the languages you need and keep the source message short and clean for the best result.',
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -3300,20 +3759,22 @@ class _SolverScreenState extends State<SolverScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(
-            title: 'Guided problem solving',
-            subtitle:
-                'Work through a problem step by step with prompts, hints, and feedback that stay in one place.',
+          const _WorkspaceIntroCard(
+            icon: Icons.psychology_outlined,
+            eyebrow: 'Problem solving',
+            title: 'Open one guided solving session and keep every step in the same place.',
+            body:
+                'Paste the problem, choose the closest type, and let the assistant walk the learner through prompts, hints, and feedback without losing the thread.',
           ),
+          const SizedBox(height: 18),
           _SectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _BannerCard(
-                  icon: Icons.psychology_outlined,
-                  title: 'Open a guided solving session',
-                  body:
-                      'Paste the full problem statement, choose the closest problem type, and let the assistant walk the learner through each step.',
+                const _PanelHeader(
+                  title: 'Session setup',
+                  subtitle:
+                      'Start with the full problem statement so the assistant can keep the session coherent from the first step.',
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -3443,231 +3904,179 @@ class _SolverScreenState extends State<SolverScreen> {
   }
 }
 
-class _HeroPanel extends StatelessWidget {
-  const _HeroPanel({required this.onSelectFeature, required this.isLoggedIn});
-
-  final ValueChanged<int> onSelectFeature;
-  final bool isLoggedIn;
-
-  @override
-  Widget build(BuildContext context) {
-    final isWideLayout = MediaQuery.sizeOf(context).width >= 900;
-    final summaryCards = Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: const [
-        _HeroStatCard(label: 'Summaries', value: '4 languages'),
-        _HeroStatCard(label: 'Quiz rounds', value: '10 questions'),
-        _HeroStatCard(label: 'Study plans', value: 'Lecture-based'),
-      ],
-    );
-    final shortcuts = Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        _FeatureShortcutCard(
-          icon: Icons.upload_file_outlined,
-          title: 'Add a lecture',
-          description:
-              'Bring in a recording and let StudyService turn it into notes and review material.',
-          onPressed: () => onSelectFeature(1),
-        ),
-        _FeatureShortcutCard(
-          icon: Icons.menu_book_outlined,
-          title: 'Open your library',
-          description:
-              'Browse transcripts, key concepts, and lecture summaries in one place.',
-          onPressed: () => onSelectFeature(2),
-        ),
-        _FeatureShortcutCard(
-          icon: Icons.event_note_outlined,
-          title: 'Build a study plan',
-          description:
-              'Turn saved lectures into a realistic revision plan you can actually follow.',
-          onPressed: () => onSelectFeature(4),
-        ),
-      ],
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0F172A), Color(0xFF134E4A), Color(0xFF0F766E)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x260F172A),
-            blurRadius: 32,
-            offset: Offset(0, 20),
-          ),
-        ],
-      ),
-      child: isWideLayout
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _HeroPanelCopy(isLoggedIn: isLoggedIn)),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      summaryCards,
-                      const SizedBox(height: 18),
-                      shortcuts,
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _HeroPanelCopy(isLoggedIn: isLoggedIn),
-                const SizedBox(height: 18),
-                summaryCards,
-                const SizedBox(height: 18),
-                shortcuts,
-              ],
-            ),
-    );
-  }
-}
-
-class _HeroPanelCopy extends StatelessWidget {
-  const _HeroPanelCopy({required this.isLoggedIn});
-
-  final bool isLoggedIn;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _LaunchBadge(label: 'Built for real study sessions'),
-        const SizedBox(height: 16),
-        const Text(
-          'Turn lecture recordings into study material you can actually use.',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 34,
-            fontWeight: FontWeight.w800,
-            height: 1.15,
-          ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Upload a lecture once, then move through summaries, keyword notes, quizzes, and study plans without hopping between tools.',
-          style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 15, height: 1.6),
-        ),
-        const SizedBox(height: 18),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _OutlineChip(
-              label: isLoggedIn
-                  ? 'Signed in and ready to save progress'
-                  : 'Sign in when you want to keep your library',
-            ),
-            const _OutlineChip(
-              label: 'Summaries, quizzes, and plans stay connected',
-            ),
-            const _OutlineChip(
-              label: 'Works comfortably on desktop and tablet',
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _HeroStatCard extends StatelessWidget {
-  const _HeroStatCard({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 120),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(color: Color(0xFFBFDBFE), fontSize: 12),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeatureShortcutCard extends StatelessWidget {
-  const _FeatureShortcutCard({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.onPressed,
+class _LandingTopBar extends StatelessWidget {
+  const _LandingTopBar({
+    required this.isLoggedIn,
+    required this.onOpenLibrary,
+    required this.onOpenSignIn,
+    required this.onOpenRegister,
   });
 
-  final IconData icon;
-  final String title;
-  final String description;
-  final VoidCallback onPressed;
+  final bool isLoggedIn;
+  final VoidCallback onOpenLibrary;
+  final VoidCallback onOpenSignIn;
+  final VoidCallback onOpenRegister;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 220,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onPressed,
-        child: Ink(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+    final isWideLayout = MediaQuery.sizeOf(context).width >= 960;
+
+    return Container(
+      color: Colors.white,
+      child: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Color(0xFFE5E7EB)),
           ),
+        ),
+        child: _LandingContainer(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: isWideLayout
+                ? Row(
+                    children: [
+                      const Text(
+                        'WaveStudy',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const Spacer(),
+                      Wrap(
+                        spacing: 12,
+                        children: [
+                          TextButton(
+                            onPressed: isLoggedIn ? onOpenLibrary : onOpenSignIn,
+                            child: Text(isLoggedIn ? '내 라이브러리' : '로그인'),
+                          ),
+                          FilledButton(
+                            onPressed: isLoggedIn ? onOpenLibrary : onOpenRegister,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF2563EB),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: Text(isLoggedIn ? '학습 이어가기' : '무료로 시작하기'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'WaveStudy',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const Spacer(),
+                          FilledButton(
+                            onPressed: isLoggedIn ? onOpenLibrary : onOpenRegister,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF2563EB),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: Text(isLoggedIn ? '이어가기' : '무료 시작'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroPanel extends StatelessWidget {
+  const _HeroPanel({
+    required this.onSelectFeature,
+  });
+
+  final ValueChanged<int> onSelectFeature;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      child: _LandingContainer(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 72),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
+              const _LaunchBadge(label: 'Built for real study sessions'),
+              const SizedBox(height: 22),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 780),
+                child: const Text(
+                  'Turn lecture recordings into study material.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 54,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                description,
-                style: const TextStyle(color: Color(0xFFE2E8F0), height: 1.45),
+              const SizedBox(height: 16),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: const Text(
+                  'Upload once. Review notes, practice quizzes, and build a plan from the same lecture.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF4B5563),
+                    fontSize: 17,
+                    height: 1.6,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+              FilledButton(
+                // Development note: this CTA should route directly into the core
+                // upload/workspace flow without a login or signup wall.
+                onPressed: () => onSelectFeature(1),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+                ),
+                child: const Text('시작하기'),
+              ),
+              const SizedBox(height: 28),
+              const Text(
+                'Trusted by students from top universities',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _UniversityBadge(label: 'KHU'),
+                  _UniversityBadge(label: 'SNU'),
+                  _UniversityBadge(label: 'KU'),
+                  _UniversityBadge(label: 'PKNU'),
+                  _UniversityBadge(label: 'SKKU'),
+                ],
               ),
             ],
           ),
@@ -3677,24 +4086,796 @@ class _FeatureShortcutCard extends StatelessWidget {
   }
 }
 
-class _OutlineChip extends StatelessWidget {
-  const _OutlineChip({required this.label});
+class _LandingProcessSection extends StatelessWidget {
+  const _LandingProcessSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final isWideLayout = MediaQuery.sizeOf(context).width >= 980;
+
+    final steps = const [
+      _ProcessStepCard(
+        icon: Icons.mic_none_rounded,
+        title: '1단계: 강의 녹음 업로드',
+      ),
+      _ProcessStepCard(
+        icon: Icons.auto_awesome_outlined,
+        title: '2단계: AI 분석 및 요약',
+      ),
+      _ProcessStepCard(
+        icon: Icons.note_alt_outlined,
+        title: '3단계: 나만의 학습 세트 완성',
+      ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFF9FAFB),
+      child: _LandingContainer(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 64),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const _CenteredSectionHeader(
+                title: 'Process flow',
+                subtitle: 'Upload once, then move through the study loop in order.',
+              ),
+              const SizedBox(height: 32),
+              if (isWideLayout)
+                Row(
+                  children: [
+                    Expanded(child: steps[0]),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Icon(Icons.arrow_forward_rounded, color: Color(0xFF94A3B8)),
+                    ),
+                    Expanded(child: steps[1]),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Icon(Icons.arrow_forward_rounded, color: Color(0xFF94A3B8)),
+                    ),
+                    Expanded(child: steps[2]),
+                  ],
+                )
+              else
+                Column(
+                  children: const [
+                    _ProcessStepCard(
+                      icon: Icons.mic_none_rounded,
+                      title: '1단계: 강의 녹음 업로드',
+                    ),
+                    SizedBox(height: 10),
+                    Icon(Icons.arrow_downward_rounded, color: Color(0xFF94A3B8)),
+                    SizedBox(height: 10),
+                    _ProcessStepCard(
+                      icon: Icons.auto_awesome_outlined,
+                      title: '2단계: AI 분석 및 요약',
+                    ),
+                    SizedBox(height: 10),
+                    Icon(Icons.arrow_downward_rounded, color: Color(0xFF94A3B8)),
+                    SizedBox(height: 10),
+                    _ProcessStepCard(
+                      icon: Icons.note_alt_outlined,
+                      title: '3단계: 나만의 학습 세트 완성',
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LandingFeaturesSection extends StatelessWidget {
+  const _LandingFeaturesSection({
+    required this.onOpenQuiz,
+    required this.onOpenPlanner,
+    required this.onOpenSummary,
+  });
+
+  final VoidCallback onOpenQuiz;
+  final VoidCallback onOpenPlanner;
+  final VoidCallback onOpenSummary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      child: _LandingContainer(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 64),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const _CenteredSectionHeader(
+                title: 'Features',
+                subtitle: 'Three tools that turn one lecture into a usable study workflow.',
+              ),
+              const SizedBox(height: 32),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 980 ? 3 : 1;
+                  final children = [
+                    _FeatureInfoCard(
+                      icon: Icons.description_outlined,
+                      title: '요약 노트',
+                      body: 'Multi-language summaries and a clean structure view from the same lecture.',
+                      actionLabel: 'Open summary',
+                      onTap: onOpenSummary,
+                    ),
+                    _FeatureInfoCard(
+                      icon: Icons.quiz_outlined,
+                      title: '퀴즈 생성',
+                      body: 'Automated quiz sets built directly from lecture content and saved notes.',
+                      actionLabel: 'Open quizzes',
+                      onTap: onOpenQuiz,
+                    ),
+                    _FeatureInfoCard(
+                      icon: Icons.calendar_month_outlined,
+                      title: '스터디 플랜',
+                      body: 'Personalized schedules built from selected lectures and review goals.',
+                      actionLabel: 'Open planner',
+                      onTap: onOpenPlanner,
+                    ),
+                  ];
+
+                  if (columns == 1) {
+                    return Column(
+                      children: [
+                        for (var i = 0; i < children.length; i++) ...[
+                          children[i],
+                          if (i != children.length - 1) const SizedBox(height: 14),
+                        ],
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: children[0]),
+                      const SizedBox(width: 14),
+                      Expanded(child: children[1]),
+                      const SizedBox(width: 14),
+                      Expanded(child: children[2]),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UniversityBadge extends StatelessWidget {
+  const _UniversityBadge({required this.label});
 
   final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 12.5),
+        style: const TextStyle(
+          color: Color(0xFF64748B),
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
       ),
+    );
+  }
+}
+
+class _ProcessStepCard extends StatelessWidget {
+  const _ProcessStepCard({
+    required this.icon,
+    required this.title,
+  });
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF2563EB)),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF0F172A),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureInfoCard extends StatelessWidget {
+  const _FeatureInfoCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.actionLabel,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final String actionLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: const Color(0xFF2563EB)),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF0F172A),
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            body,
+            style: const TextStyle(
+              color: Color(0xFF4B5563),
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 18),
+          TextButton(
+            onPressed: onTap,
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: const Color(0xFF2563EB),
+            ),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardUploadCard extends StatelessWidget {
+  const _DashboardUploadCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(28),
+      onTap: onTap,
+      child: CustomPaint(
+        painter: _DashedCardPainter(
+          color: const Color(0xFFBFDBFE),
+          radius: 28,
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.cloud_upload_rounded,
+                  color: Color(0xFF2563EB),
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Upload a new lecture',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Drop in a recording and turn it into summaries, quizzes, and a study plan.',
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  height: 1.55,
+                ),
+              ),
+              const SizedBox(height: 28),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_rounded, size: 18, color: Color(0xFF2563EB)),
+                    SizedBox(width: 8),
+                    Text(
+                      'Start upload',
+                      style: TextStyle(
+                        color: Color(0xFF2563EB),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardRecentCard extends StatelessWidget {
+  const _DashboardRecentCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const recentItems = ['Lecture 1 summary', 'Lecture 2 summary', 'Lecture 3 summary'];
+
+    return _DashboardPanel(
+      title: 'Recent summaries',
+      subtitle: 'Open a recent lecture and keep reviewing from the library.',
+      child: Column(
+        children: [
+          for (final item in recentItems) ...[
+            _DashboardListRow(
+              icon: Icons.description_outlined,
+              title: item,
+            ),
+            if (item != recentItems.last) const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 18),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: onTap,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+                padding: EdgeInsets.zero,
+              ),
+              child: const Text('Open library'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardQuizCard extends StatelessWidget {
+  const _DashboardQuizCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DashboardPanel(
+      title: 'Quick quiz',
+      subtitle: 'Continue your last quiz or jump into a new review set.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Continue your last quiz',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Resume your review flow and check your weak concepts.',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          FilledButton(
+            onPressed: onTap,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Open quizzes'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardPanel extends StatelessWidget {
+  const _DashboardPanel({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardListRow extends StatelessWidget {
+  const _DashboardListRow({
+    required this.icon,
+    required this.title,
+  });
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF2563EB)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+        ],
+      ),
+    );
+  }
+}
+
+class _LectureListRow extends StatelessWidget {
+  const _LectureListRow({
+    required this.lecture,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Lecture lecture;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              margin: const EdgeInsets.only(top: 6),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFF2563EB)
+                    : const Color(0xFFCBD5E1),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          lecture.title,
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                      _StatusPill(label: lecture.status),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    lecture.courseName,
+                    style: const TextStyle(
+                      color: Color(0xFF475569),
+                      fontSize: 13.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _prettyDateTime(lecture.updatedAt),
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  if ((lecture.progressMessage ?? '').isNotEmpty ||
+                      lecture.progressPercent > 0) ...[
+                    const SizedBox(height: 10),
+                    _CompactLectureProgress(lecture: lecture),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderAccountPill extends StatelessWidget {
+  const _HeaderAccountPill({required this.email});
+
+  final String email;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = email.isEmpty ? 'S' : email.substring(0, 1).toUpperCase();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: const Color(0xFFEFF6FF),
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: Color(0xFF2563EB),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            email,
+            style: const TextStyle(
+              color: Color(0xFF334155),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashedCardPainter extends CustomPainter {
+  const _DashedCardPainter({
+    required this.color,
+    required this.radius,
+  });
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
+    final path = Path()..addRRect(rect);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final next = min(distance + 8, metric.length);
+        canvas.drawPath(metric.extractPath(distance, next), paint);
+        distance += 14;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedCardPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.radius != radius;
+  }
+}
+
+class _LandingContainer extends StatelessWidget {
+  const _LandingContainer({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _CenteredSectionHeader extends StatelessWidget {
+  const _CenteredSectionHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF475569),
+              height: 1.55,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -3750,146 +4931,71 @@ class _SidebarAccountCard extends StatelessWidget {
   }
 }
 
-class _AccountSnapshotCard extends StatelessWidget {
-  const _AccountSnapshotCard({required this.controller});
-
-  final AppController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Your account at a glance',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            controller.currentUser?.email ?? 'No account connected yet.',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            controller.isLoggedIn
-                ? 'Uploads, lecture notes, quizzes, and plans will stay attached to this account.'
-                : 'Create an account or sign in when you want your study library to persist between sessions.',
-            style: const TextStyle(color: Color(0xFF475569), height: 1.5),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _MiniTag(
-                label: controller.isLoggedIn ? 'Ready to save progress' : 'Guest',
-                tint: controller.isLoggedIn
-                    ? const Color(0xFF0F766E)
-                    : const Color(0xFFB45309),
-              ),
-              _MiniTag(
-                label: 'Language ${controller.localeCode.toUpperCase()}',
-                tint: const Color(0xFF2563EB),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickStartCard extends StatelessWidget {
-  const _QuickStartCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            'A simple way to begin',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          SizedBox(height: 12),
-          _ChecklistLine(
-            step: '1',
-            title: 'Connect once',
-            body: 'Keep the default API URL unless your backend lives on another machine.',
-          ),
-          SizedBox(height: 12),
-          _ChecklistLine(
-            step: '2',
-            title: 'Sign in',
-            body: 'Use one account so every lecture, quiz result, and study plan stays together.',
-          ),
-          SizedBox(height: 12),
-          _ChecklistLine(
-            step: '3',
-            title: 'Start with one lecture',
-            body: 'Upload a recording first, then move into summaries, quizzes, and planning from there.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChecklistLine extends StatelessWidget {
-  const _ChecklistLine({
-    required this.step,
-    required this.title,
-    required this.body,
+class _SidebarNavButton extends StatelessWidget {
+  const _SidebarNavButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
   });
 
-  final String step;
-  final String title;
-  final String body;
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE6FFFA),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            step,
-            style: const TextStyle(
-              color: Color(0xFF0F766E),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final tint = selected ? const Color(0xFF2563EB) : const Color(0xFF475569);
+    return Material(
+      color: selected ? const Color(0xFFEFF6FF) : Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
             children: [
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                body,
-                style: const TextStyle(color: Color(0xFF475569), height: 1.45),
+              Icon(icon, color: tint),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? const Color(0xFF0F172A) : tint,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _QuizSetupBlock extends StatelessWidget {
+  const _QuizSetupBlock({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 12),
+        child,
       ],
     );
   }
@@ -3931,16 +5037,37 @@ class _LaunchBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFCCFBF1).withValues(alpha: 0.12),
+        color: const Color(0xFFE6FFFA),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        border: Border.all(color: const Color(0xFFCCFBF1)),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: Colors.white,
+          color: Color(0xFF115E59),
           fontWeight: FontWeight.w700,
           letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _AmbientGlow extends StatelessWidget {
+  const _AmbientGlow({required this.size, required this.colors});
+
+  final double size;
+  final List<Color> colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(colors: colors),
         ),
       ),
     );
@@ -3955,16 +5082,10 @@ class _PageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFEAFBF7), Color(0xFFF7FAFC), Color(0xFFEFFBFF)],
-        ),
-      ),
+      decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1360),
@@ -3977,37 +5098,218 @@ class _PageScaffold extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.subtitle});
+class _PageHeader extends StatelessWidget {
+  const _PageHeader({
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).width >= 900;
+    if (isWide && action != null) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _PageHeaderText(title: title, subtitle: subtitle)),
+          const SizedBox(width: 16),
+          action!,
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PageHeaderText(title: title, subtitle: subtitle),
+        if (action != null) ...[
+          const SizedBox(height: 16),
+          action!,
+        ],
+      ],
+    );
+  }
+}
+
+class _PageHeaderText extends StatelessWidget {
+  const _PageHeaderText({
+    required this.title,
+    required this.subtitle,
+  });
 
   final String title;
   final String subtitle;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF0F172A),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
           ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: Color(0xFF475569),
-              height: 1.5,
-            ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            height: 1.45,
+            fontSize: 15,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WorkspaceIntroCard extends StatelessWidget {
+  const _WorkspaceIntroCard({
+    required this.icon,
+    required this.eyebrow,
+    required this.title,
+    required this.body,
+    this.metrics = const [],
+  });
+
+  final IconData icon;
+  final String eyebrow;
+  final String title;
+  final String body;
+  final List<Widget> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final isWideLayout = MediaQuery.sizeOf(context).width >= 1024;
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE6FFFA),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(icon, color: const Color(0xFF0F766E)),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    eyebrow,
+                    style: const TextStyle(
+                      color: Color(0xFF0F766E),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                      letterSpacing: 0.25,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 31,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                      height: 1.04,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: Text(
+                      body,
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        height: 1.55,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (!isWideLayout && metrics.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Wrap(spacing: 12, runSpacing: 12, children: metrics),
         ],
-      ),
+      ],
+    );
+
+    return _SectionCard(
+      child: isWideLayout
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 7, child: details),
+                const SizedBox(width: 22),
+                Container(
+                  width: 1,
+                  height: 172,
+                  color: const Color(0xFFE2E8F0),
+                ),
+                const SizedBox(width: 22),
+                Expanded(
+                  flex: 5,
+                  child: metrics.isEmpty
+                      ? const SizedBox.shrink()
+                      : Wrap(spacing: 12, runSpacing: 12, children: metrics),
+                ),
+              ],
+            )
+          : details,
+    );
+  }
+}
+
+class _PanelHeader extends StatelessWidget {
+  const _PanelHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: Color(0xFF475569),
+            height: 1.45,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -4019,73 +5321,20 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x120F172A),
-              blurRadius: 24,
-              offset: Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Padding(padding: const EdgeInsets.all(20), child: child),
-      ),
-    );
-  }
-}
-
-class _UserSummary extends StatelessWidget {
-  const _UserSummary({required this.user, required this.isLoggedIn});
-
-  final UserProfile? user;
-  final bool isLoggedIn;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!isLoggedIn) {
-      return const Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'No account connected yet. You can still browse the interface, but your study library will not be saved until you sign in.',
-          style: TextStyle(color: Color(0xFF475569), height: 1.5),
-        ),
-      );
-    }
-    if (user == null) {
-      return const Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'You are signed in, and your account details are still syncing.',
-        ),
-      );
-    }
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            user!.email,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            user!.isActive
-                ? 'Your account is active and ready to save lectures, quizzes, and plans.'
-                : 'Your account is signed in, but it still needs to be activated.',
-            style: const TextStyle(color: Color(0xFF475569), height: 1.45),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x080F172A),
+            blurRadius: 14,
+            offset: Offset(0, 6),
           ),
         ],
       ),
+      child: Padding(padding: const EdgeInsets.all(22), child: child),
     );
   }
 }
@@ -4241,27 +5490,26 @@ class _MetricCard extends StatelessWidget {
   const _MetricCard({
     required this.label,
     required this.value,
-    this.tint = const Color(0xFF0F766E),
   });
 
   final String label;
   final String value;
-  final Color tint;
 
   @override
   Widget build(BuildContext context) {
+    const tint = Color(0xFF2563EB);
     return Container(
-      constraints: const BoxConstraints(minWidth: 156),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      constraints: const BoxConstraints(minWidth: 148),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tint.withValues(alpha: 0.055),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: tint.withValues(alpha: 0.18)),
+        border: Border.all(color: tint.withValues(alpha: 0.12)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 14,
-            offset: Offset(0, 8),
+            color: Color(0x060F172A),
+            blurRadius: 10,
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -4306,36 +5554,39 @@ class _BannerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFF6FFFC), Color(0xFFF8FAFC)],
+          colors: [Color(0xFFFBFEFE), Color(0xFFF7FBFC)],
         ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFDDEAEF)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE3EDF1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: const Color(0xFFE6FFFA),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(icon, color: const Color(0xFF0F766E)),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15.5,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -4343,6 +5594,7 @@ class _BannerCard extends StatelessWidget {
                   style: const TextStyle(
                     color: Color(0xFF475569),
                     height: 1.45,
+                    fontSize: 13.5,
                   ),
                 ),
               ],
@@ -4378,6 +5630,68 @@ class _InfoBlock extends StatelessWidget {
             SelectableText(body),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InlineSummaryTile extends StatelessWidget {
+  const _InlineSummaryTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE6FFFA),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: const Color(0xFF0F766E)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

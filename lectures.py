@@ -1,6 +1,7 @@
 import datetime as dt
 import json
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from typing import Iterable, List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -711,7 +712,7 @@ def regenerate_lecture_quizzes(
     if not lecture_ids:
         raise HTTPException(status_code=400, detail="Choose at least one lecture first.")
 
-    refreshed_quizzes: list[LectureQuizOut] = []
+    lecture_specs: list[dict] = []
     for lecture_id in lecture_ids:
         lecture = _owned_lecture(db, lecture_id, current_user.id)
         transcript = (lecture.transcript or "").strip()
@@ -720,13 +721,38 @@ def regenerate_lecture_quizzes(
                 status_code=409,
                 detail=f"Lecture '{lecture.title}' does not have a transcript yet.",
             )
-        quiz_payloads = generate_quiz_set(
-            lecture.title,
-            lecture.course_name,
-            transcript,
+        lecture_specs.append(
+            {
+                "id": lecture.id,
+                "user_id": lecture.user_id,
+                "title": lecture.title,
+                "course_name": lecture.course_name,
+                "transcript": transcript,
+            }
+        )
+
+    def build_quizzes(spec: dict) -> tuple[str, list[dict]]:
+        return spec["id"], generate_quiz_set(
+            spec["title"],
+            spec["course_name"],
+            spec["transcript"],
             question_count=payload.question_count,
             force_new=True,
         )
+
+    if len(lecture_specs) == 1:
+        quiz_results = [build_quizzes(lecture_specs[0])]
+    else:
+        max_workers = min(4, len(lecture_specs))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            quiz_results = list(executor.map(build_quizzes, lecture_specs))
+
+    quiz_payload_by_lecture = {lecture_id: payloads for lecture_id, payloads in quiz_results}
+
+    refreshed_quizzes: list[LectureQuizOut] = []
+    for spec in lecture_specs:
+        lecture = _owned_lecture(db, spec["id"], current_user.id)
+        quiz_payloads = quiz_payload_by_lecture.get(spec["id"]) or []
         _replace_lecture_quizzes(db, lecture, quiz_payloads)
         lecture = _owned_lecture(db, lecture.id, lecture.user_id)
         refreshed_quizzes.extend(_quiz_to_out(quiz) for quiz in lecture.quizzes)

@@ -14,7 +14,7 @@ from gemini_api import generate_json
 
 TRANSCRIPTION_NORMALIZATION_BITRATES = ("64k", "48k", "32k", "24k")
 SUMMARY_LANGUAGE_CODES = ("en", "ko", "ru", "zh")
-TARGET_QUIZ_COUNT = 10
+TARGET_QUIZ_COUNT = 5
 
 
 class AudioTranscriptionError(Exception):
@@ -935,6 +935,26 @@ def generate_multilingual_quizzes(
     normalized_quizzes = _normalize_quizzes(quizzes)
     if _quizzes_multilingual_complete(normalized_quizzes):
         return normalized_quizzes
+
+    system = (
+        "You localize lecture review quizzes for international students. Return strict JSON only."
+    )
+    user = (
+        f"course: {course_name}\n"
+        f"lecture_title: {title}\n"
+        f"transcript:\n{transcript}\n\n"
+        f"existing_quizzes: {normalized_quizzes}\n\n"
+        'Return JSON: {"quizzes":[{"type":"multiple_choice|short_answer|blank","question":"...","options":["..."],"answer":"...","explanation":"...","difficulty":"easy|medium|hard","skillTag":"...","conceptRefs":["..."],"reviewHint":"...","followUpPrompt":"...","localizedContent":{"en":{"question":"...","options":["..."],"answer":"...","explanation":"...","reviewHint":"...","followUpPrompt":"...","skillTag":"...","conceptRefs":["..."]},"ko":{"question":"...","options":["..."],"answer":"...","explanation":"...","reviewHint":"...","followUpPrompt":"...","skillTag":"...","conceptRefs":["..."]},"ru":{"question":"...","options":["..."],"answer":"...","explanation":"...","reviewHint":"...","followUpPrompt":"...","skillTag":"...","conceptRefs":["..."]},"zh":{"question":"...","options":["..."],"answer":"...","explanation":"...","reviewHint":"...","followUpPrompt":"...","skillTag":"...","conceptRefs":["..."]}}}]}. '
+        "Preserve the quiz count, question order, answer key, difficulty, and meaning. "
+        "For each quiz, fill complete `localizedContent` for English, Korean, Russian, and Chinese in one pass. "
+        "If a question uses options, keep the translated answer aligned to the translated option at the same index. "
+        "Use only facts supported by the transcript and the provided quiz content."
+    )
+    data = generate_json(system=system, user=user)
+    if isinstance(data, dict):
+        generated_quizzes = _normalize_quizzes(data.get("quizzes") or [])
+        if generated_quizzes and _quizzes_multilingual_complete(generated_quizzes):
+            return generated_quizzes
 
     def fill_quiz_localizations(quiz: dict) -> dict:
         localized_content = _normalize_quiz_localizations(quiz.get("localizedContent"), quiz)

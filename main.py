@@ -41,7 +41,15 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
     existing = db.scalar(select(User).where(User.email == str(payload.email)))
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    user = User(email=str(payload.email), hashed_password=hash_password(payload.password))
+    user = User(
+        email=str(payload.email),
+        hashed_password=hash_password(payload.password),
+        full_name=payload.full_name.strip(),
+        school_name=payload.school_name.strip(),
+        major=payload.major.strip(),
+        academic_year=payload.academic_year.strip(),
+        preferred_language=payload.preferred_language.strip().lower(),
+    )
     db.add(user)
     db.commit()
     db.refresh(user)

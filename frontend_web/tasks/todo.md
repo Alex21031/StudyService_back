@@ -91,6 +91,9 @@
 - [x] Make quiz generation target 10 questions and add a backend path to regenerate fresh quiz sets for selected lectures.
 - [x] Update the Flutter quiz screen with multi-select lecture input, source-lecture visibility, and a `Create new quiz set` action.
 - [x] Verify the quiz overhaul with backend diffs plus relevant runtime, analyze, and build checks.
+- [x] Inspect why fresh review-quiz generation still feels slow, especially for multilingual sets and multi-lecture regeneration.
+- [x] Reduce quiz-generation latency by batching multilingual localization work and parallelizing regeneration across selected lectures.
+- [x] Verify the quiz-speed improvements with backend diffs plus targeted syntax/smoke checks.
 
 ## Notes
 - The current workspace does not contain a root `.git` directory, so `git diff -- <file>` cannot run successfully here until the repository metadata is restored.
@@ -232,6 +235,13 @@
 - Added a fresh quiz-generation endpoint for selected lectures and updated quiz generation to target 10 questions, with a live runtime check confirming two selected lectures were regenerated to 10 questions each.
 - Reworked the Flutter quiz screen around multi-select lecture sources, source-lecture chips on each question, a 10-question active set, and both `Generate fresh quizzes` and `Create new quiz set` actions.
 - Verified the quiz overhaul with backend `py_compile`, `flutter analyze`, `flutter build web`, and a live authenticated smoke test showing `lecture_a_count_after: 10` plus subset grading returning `total: 3`, `correct: 3`, and `question_results: 3`.
+- Hardened JSON parsing in the Gemini helper so model output with trailing text no longer fails immediately with `Extra data` during quiz generation.
+- Changed multilingual quiz localization to try one batched AI pass for all quizzes first, keeping the old per-field translation fallback only as a safety net.
+- Parallelized multi-lecture quiz regeneration so selected lectures can generate in worker threads while DB writes stay serialized on the main thread.
+- Verified the quiz-speed change with backend `py_compile`, `git -C backend diff -- ...`, and a targeted smoke test confirming the batched localization path returns complete localized quizzes without falling into the older per-question fallback.
+- Lowered the default quiz target from 10 questions to 5 so the first generated review set returns faster by default.
+- Added a quiz question-count selector in the Flutter quiz setup so users can choose 5, 10, or 15 questions before loading saved quizzes or generating a fresh set.
+- Updated quiz-set helper text, status messages, and metrics so the interface reflects the chosen target size instead of assuming every set is 10 questions.
 - [x] Audit the current web shell and feature screens for internal-only copy, redundant status blocks, and layout noise that should be removed for production users.
 - [x] Refine the shared theme, shell, and reusable card components so the interface feels more intentionally designed without changing the approved color direction.
 - [x] Simplify the home, upload, library, quiz, and planner screens to emphasize real user actions and hide unnecessary workspace/debug detail.
@@ -242,6 +252,10 @@
 - Tightened the upload, library, quiz, and planner copy so the screens talk about the user task at hand rather than workspace/backend mechanics while keeping the existing functionality intact.
 - Verified the refreshed frontend with `flutter analyze` and `cmd /c flutter build web`.
 - Attempted `git diff -- lib/app.dart` and `git diff -- tasks/todo.md`, but both still fail because the workspace root does not currently contain `.git`.
+- [x] Audit the deployed-web feel of the shared shell and the main study screens, focusing on hierarchy, navigation clarity, and reducing visual clutter.
+- [x] Refine the shared Flutter web design system so cards, page headers, side navigation, and action areas feel more polished and easier to scan.
+- [x] Rework the home, upload, library, quiz, and planner screens around shorter copy, clearer grouping, and more user-friendly task flow.
+- [x] Verify the broader UI redesign with `git diff -- <file>` where available plus `flutter analyze` and `flutter build web`.
 - [x] Tighten the home connection card by removing redundant explanation blocks and simplifying the layout around the API URL and actions.
 - [x] Verify the focused home-card cleanup with `git diff -- <file>` where available plus `flutter analyze` and `flutter build web`.
 
@@ -249,3 +263,88 @@
 - Removed the extra explainer block under connection settings and shortened the surrounding wording so the setup panel feels lighter.
 - Verified the focused home-card cleanup with `flutter analyze` and `cmd /c flutter build web`.
 - Attempted `git diff -- lib/app.dart` and `git diff -- tasks/todo.md`, but both still fail because the workspace root does not currently contain `.git`.
+- Reworked the deployed-web shell with a calmer sidebar header, clearer current-page context, and a direct upload call-to-action in the top bar.
+- Tightened the home, upload, library, and quiz surfaces around shorter copy, stronger grouping, and more obvious next actions so the product feels closer to a real release than an internal tool.
+- Added softer ambient background treatment and cleaner card rhythm to keep the approved color direction while making the web app feel more intentional.
+- Verified the broader UI redesign with `flutter analyze` and `cmd /c flutter build web`.
+- Attempted `git diff -- lib/app.dart` and `git diff -- tasks/todo.md`, but both still fail because the workspace root does not currently contain `.git`.
+- [x] Audit the main content screens against the polished sidebar so the hierarchy, spacing, and action placement feel equally intentional.
+- [x] Rework shared page-intro, form, and results-card patterns so the main surfaces stop feeling like stacked generic cards.
+- [x] Redesign the home, upload, library, quiz, planner, translation, and problem-solving screens around one primary action, tighter copy, and clearer visual grouping.
+- [x] Verify the second-pass UI redesign with `git diff -- <file>` where available plus `flutter analyze` and `flutter build web`.
+
+- Reworked the shared content language around new `WorkspaceIntroCard` and `PanelHeader` patterns so each page now opens with one clear purpose and cleaner visual hierarchy instead of repeating large generic section blocks.
+- Softened the home hero, quick actions, account, and connection surfaces so they feel closer to the polished sidebar: shorter copy, calmer cards, and less dashboard-like noise.
+- Restructured upload, library, quiz, planner, translation, and problem-solving pages so setup, progress, and result areas are grouped more like product flows than stacked utility panels.
+- Verified the second-pass UI redesign with `flutter analyze` and `cmd /c flutter build web`.
+- Attempted `git diff -- lib/app.dart` and `git diff -- tasks/todo.md`, but both still fail because the workspace root does not currently contain `.git`.
+- Revisited the redesign after the user reported the change still felt too subtle, and shifted from light cleanup into more visible structural changes across the first-view experience.
+- Expanded `WorkspaceIntroCard` into a split hero-style page intro so the main workspaces now open with a clearer left/right hierarchy instead of one more generic card.
+- Rebuilt the home hero into a more obvious entry surface with primary actions and a visible three-step study flow, while also tightening the workspace-status and quick-action cards.
+- Recorded the correction in `tasks/lessons.md` so future UI redesign requests trigger structural changes earlier instead of stopping at copy and card polish.
+- Removed the home `Connection` / `Advanced connection settings` surface entirely because it still read like an internal deployment control rather than a real user-facing product feature.
+- [x] Split the home authentication flow into distinct login and sign-up interfaces instead of keeping both actions inside one shared form.
+- [x] Rebuild the home page so it feels like a stronger landing/dashboard with clearer structure, bolder sections, and less repeated utility-card layout.
+- [x] Verify the home/auth redesign with `git diff -- <file>` where available plus `flutter analyze` and `flutter build web`.
+
+- Replaced the old shared auth form with a dedicated home auth panel that switches between separate sign-in and account-creation modes.
+- Rebuilt the home body around a stronger landing structure: a larger action-first hero, a study-loop explainer, and a task grid instead of repeated stacked utility cards.
+- Verified the home/auth rewrite with `flutter analyze` and `cmd /c flutter build web`.
+- Moved authentication fully out of the home page into a dedicated auth workspace screen, so sign-in and account creation now feel like separate destinations instead of one shared widget.
+- Expanded registration to capture basic student profile fields: full name, school, major, academic year, and preferred language, with matching backend persistence and response models.
+- Removed the in-form sign-in/create-account segmented toggle so each auth screen keeps one purpose, with only a simple link to switch destinations.
+- Verified the final auth/profile rewrite with `flutter analyze`, `cmd /c flutter build web`, and `backend\.venv\Scripts\python.exe -m py_compile backend\database.py backend\schemas.py backend\main.py`.
+- Attempted `git diff -- lib/app.dart`, `git diff -- lib/api_client.dart`, `git diff -- tasks/todo.md`, and `git diff -- tasks/lessons.md`, but all still fail because the workspace root does not currently contain `.git`.
+- Simplified the home page by removing extra explainer sections and secondary status cards, leaving one hero card, one action card, and one workspace/account card.
+- Shortened the hero copy and reduced the number of chips and boxes so the first screen reads faster and feels less like a dashboard of repeated panels.
+- Verified the home simplification with `flutter analyze` and `cmd /c flutter build web`.
+- Attempted `git diff -- lib/app.dart`, `git diff -- tasks/todo.md`, and `git diff -- tasks/lessons.md`, but they still fail because the workspace root does not currently contain `.git`.
+- Rebuilt the homepage around an explicit SaaS landing-page hierarchy: top navigation, centered hero, three-step process flow, and a three-card features grid.
+- Shifted the landing-page accent toward cobalt blue for the primary CTA, process icons, and feature highlights while keeping the overall app shell intact.
+- Removed the old account/action-card homepage layout so the first screen now behaves more like a product landing page than an internal workspace dashboard.
+- Verified the landing-page refactor with `flutter analyze` and `cmd /c flutter build web`.
+- Attempted `git diff -- lib/app.dart`, `git diff -- tasks/todo.md`, and `git diff -- tasks/lessons.md`, but they still fail because the workspace root does not currently contain `.git`.
+- Removed the giant bordered wrappers around the hero, process, and features sections so those areas now read as full-width landing-page sections instead of dashboard panels.
+- Switched the landing page to alternating full-width backgrounds with centered inner containers: white hero, light-gray process flow, and white features.
+- Reduced the hero to one primary CTA and removed the redundant secondary action and bottom stat chips.
+- Re-centered the process and features headings and kept only the smaller step cards and feature cards as bordered elements on top of the section backgrounds.
+- Simplified the public GNB again by removing center menu items and leaving only the logo plus login/start actions for pre-login users.
+- Updated the hero CTA copy to a single `시작하기` button and documented in code that it should route directly into the core upload/workspace flow without a login wall.
+- [x] Audit the sign-in and create-account pages against the simplified landing page so the auth flow feels like a focused SaaS conversion step instead of a dashboard workspace.
+- [x] Remove redundant auth-side information panels and heavy header boxes, then rebuild both auth states around one centered form card.
+- [x] Verify the auth focus-mode refactor with `git diff -- <file>` where available plus `flutter analyze` and `flutter build web`.
+- Rebuilt the sign-in and create-account screens into a focus-mode layout with a light-gray background, one centered white form card, and only a small back-to-home action outside the card.
+- Removed the old right-side account-context panels, boxed page headers, summary chips, and other repeated explainer copy so the primary action stays obvious.
+- Retained the existing login and registration fields, but restyled them with cleaner borders, blue focus states, and a cobalt primary CTA that matches the landing page.
+- [x] Check whether the backend is actually listening on `127.0.0.1:8000` before treating the login failure as a frontend auth bug.
+- [x] Restart the FastAPI backend if it is down and re-verify the health plus token endpoints.
+- [x] Verify the recovery with `git diff -- <file>` where available and a targeted runtime check.
+- Confirmed the backend had stopped listening on `127.0.0.1:8000`, which caused the frontend login request to fail before any HTTP response was returned.
+- Restarted FastAPI from `backend/.venv` and verified `GET /health` now returns `{"status":"ok"}`.
+- Confirmed `POST /auth/token` is reachable again and now returns an HTTP response (`400` with the dummy credentials used for the smoke test) instead of a connection failure.
+- [x] Inspect the `/auth/me` failure path to determine whether it is a transport issue or a backend response-serialization bug.
+- [x] Fix the backend auth response schema so existing users can be serialized correctly after login.
+- [x] Verify the `/auth/me` recovery with backend diff output plus a targeted runtime check.
+- Traced the new login failure to backend response validation: `/auth/token` succeeded, but `/auth/me` returned `500` because `UserOut` expected alias names like `fullName` without accepting ORM field names like `full_name`.
+- Updated `backend/schemas.py` so `UserOut` allows both ORM field names and aliased API names during response validation.
+- Verified the live server with a fresh test account through the full `register -> /auth/token -> /auth/me` flow; all three requests now return `201/200/200`.
+- [x] Inspect why the authenticated home screen still renders public landing content even when the dashboard sidebar is visible.
+- [x] Split the logged-in home route into a dedicated dashboard layout and remove hero/process/features marketing blocks from that branch.
+- [x] Simplify the authenticated top header into one thin white bar with an upload CTA and user identity pill.
+- [x] Verify the dashboard/landing separation with `git diff -- <file>` where available plus `flutter analyze` and `flutter build web`.
+- Split the authenticated home route away from the public landing flow so logged-in users now land on a dedicated dashboard surface instead of seeing hero/process/features marketing content beside the sidebar.
+- Simplified the logged-in top header into one thin white bar with a cobalt `Upload lecture` CTA and a compact user identity pill.
+- Added a light-gray dashboard canvas with a greeting, a large dashed upload card, a recent summaries card, and a quick quiz card to make the post-login home feel like a real workspace.
+- [x] Remove the non-core sidebar destinations and simplify the navigation shell so the logged-in product feels lighter and more product-like.
+- [x] Replace giant intro cards on Upload, AI Summary, Quiz, and Planner with simple page headers on the background.
+- [x] Flatten overly nested setup/list surfaces so forms and lecture lists sit inside one clean white panel instead of multiple stacked boxes.
+- [x] Verify the interior dashboard cleanup with `git diff -- <file>` where available plus `flutter analyze` and `flutter build web`.
+- Removed the `메일 번역` and `문제 풀이` destinations from the main navigation, replaced the heavy sidebar hero block with a simple WaveStudy mark, and softened the active-state styling.
+- Reworked Upload, AI Summary, Quiz, and Planner to use lightweight page headers plus simpler white panels instead of giant header cards and repeated box-in-a-box wrappers.
+- Flattened the lecture library into a cleaner list treatment and simplified quiz/planner setup areas into more step-by-step form sections on the light gray workspace background.
+- [x] Inspect the quiz-generation path to find whether latency is dominated by sequential multi-lecture regeneration, repeated localization calls, or both.
+- [x] Reduce quiz-generation latency by batching multilingual localization and parallelizing fresh regeneration across multiple selected lectures.
+- [x] Verify the quiz-speed improvement with backend diffs plus targeted backend validation.
+- [x] Reduce the default quiz size so first-load review sets are lighter and faster to generate.
+- [x] Add a quiz question-count selector so users can choose a shorter or longer review set from the UI.
+- [x] Verify the lighter quiz-size flow with backend/frontend diffs plus targeted validation commands.

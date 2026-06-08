@@ -7,14 +7,24 @@ from pydantic import BaseModel, EmailStr, Field
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
+    full_name: str = Field(min_length=1, max_length=160, alias="fullName")
+    school_name: str = Field(min_length=1, max_length=200, alias="schoolName")
+    major: str = Field(default="", max_length=160)
+    academic_year: str = Field(default="", max_length=80, alias="academicYear")
+    preferred_language: str = Field(default="ko", min_length=2, max_length=16, alias="preferredLanguage")
 
 
 class UserOut(BaseModel):
     id: int
     email: EmailStr
+    full_name: str = Field(alias="fullName")
+    school_name: str = Field(alias="schoolName")
+    major: str
+    academic_year: str = Field(alias="academicYear")
+    preferred_language: str = Field(alias="preferredLanguage")
     is_active: bool
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 
 class Token(BaseModel):
@@ -205,7 +215,7 @@ class QuizAttemptRequest(BaseModel):
 
 class RegenerateLectureQuizzesRequest(BaseModel):
     lecture_ids: List[str] = Field(default_factory=list, alias="lectureIds")
-    question_count: int = Field(default=10, alias="questionCount", ge=1, le=20)
+    question_count: int = Field(default=5, alias="questionCount", ge=1, le=20)
 
 
 class QuizQuestionResultOut(BaseModel):

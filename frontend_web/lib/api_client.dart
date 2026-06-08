@@ -27,6 +27,11 @@ class UserProfile {
   UserProfile({
     required this.id,
     required this.email,
+    required this.fullName,
+    required this.schoolName,
+    required this.major,
+    required this.academicYear,
+    required this.preferredLanguage,
     required this.isActive,
   });
 
@@ -34,12 +39,22 @@ class UserProfile {
     return UserProfile(
       id: json['id'] as int? ?? 0,
       email: json['email'] as String? ?? '',
+      fullName: json['fullName'] as String? ?? '',
+      schoolName: json['schoolName'] as String? ?? '',
+      major: json['major'] as String? ?? '',
+      academicYear: json['academicYear'] as String? ?? '',
+      preferredLanguage: json['preferredLanguage'] as String? ?? '',
       isActive: json['is_active'] as bool? ?? false,
     );
   }
 
   final int id;
   final String email;
+  final String fullName;
+  final String schoolName;
+  final String major;
+  final String academicYear;
+  final String preferredLanguage;
   final bool isActive;
 }
 
@@ -591,6 +606,11 @@ class ApiClient {
   Future<UserProfile> register({
     required String email,
     required String password,
+    required String fullName,
+    required String schoolName,
+    required String major,
+    required String academicYear,
+    required String preferredLanguage,
   }) async {
     final response = await http.post(
       _uri('/auth/register'),
@@ -598,6 +618,11 @@ class ApiClient {
       body: jsonEncode({
         'email': email,
         'password': password,
+        'fullName': fullName,
+        'schoolName': schoolName,
+        'major': major,
+        'academicYear': academicYear,
+        'preferredLanguage': preferredLanguage,
       }),
     );
     return UserProfile.fromJson(_decodeMap(response));
@@ -701,7 +726,7 @@ class ApiClient {
 
   Future<List<LectureQuiz>> regenerateLectureQuizzes({
     required List<String> lectureIds,
-    int questionCount = 10,
+    int questionCount = 5,
   }) async {
     final response = await http.post(
       _uri('/lectures/quiz-sets/regenerate'),
